@@ -22,7 +22,7 @@ import org.skife.jdbi.v2.exceptions.CallbackFailedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Set;
+import java.util.List;
 
 import io.dropwizard.hibernate.UnitOfWork;
 
@@ -38,10 +38,8 @@ public class QueryResource {
   }
 
   @GET
-  @UnitOfWork
   public JsonNode getAll() {
-    job = Main.jobDAO.update(job);
-    Set<Query> q = job.getQueries();
+    List<Query> q = Main.jobDAO.getQueries(job);
     for (Query query : q) {
       logger.info(query.toString());
     }
@@ -53,9 +51,8 @@ public class QueryResource {
   @POST
   @UnitOfWork
   public Query create(Query q) {
-
-    q.setJob(job);
-    Main.queueDAO.create(q);
+    q.setJobId(job.getJobId());
+    q.queryId = Main.queryDAO.createQuery(job, q);
     return q;
   }
 
@@ -67,8 +64,7 @@ public class QueryResource {
     if (count != 1) {
       throw new WebApplicationException("query does not exist in the job", Status.NOT_FOUND);
     }
-    q.setJob(job);
-    Main.queueDAO.merge(q);
+    // Main.queryDAO.merge(job, q);
     return q;
   }
 
@@ -80,8 +76,8 @@ public class QueryResource {
     if (count != 1) {
       throw new WebApplicationException("query does not exist in the job", Status.NOT_FOUND);
     }
-    q.setJob(job);
-    Main.queueDAO.delete(q);
+    // q.setJob(job);
+    // Main.queryDAO.delete(q);
     return q;
   }
 
@@ -93,7 +89,7 @@ public class QueryResource {
   public int exists(int queryId) throws CallbackFailedException {
     // Check to see if it exists
     int count = Main.jdbi.withHandle(handle -> {
-      return handle.createQuery("select count(*) from query where query_id = :query_id and job_id = :job_id").bind("query_id", queryId).bind("job_id", job.getJobId()).mapTo(Integer.class).first();
+      return handle.createQuery("select count(*) from query where queryId = :queryId and jobId = :jobId").bind("queryId", queryId).bind("jobId", job.getJobId()).mapTo(Integer.class).first();
     });
     return count;
   }

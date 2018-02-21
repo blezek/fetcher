@@ -8,6 +8,8 @@ import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.Status;
 import org.fetcher.model.Job;
 import org.fetcher.model.Query;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,6 +19,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class CFind {
+  static Logger logger = LoggerFactory.getLogger(CFind.class);
 
   private Job job;
   private Query query;
@@ -59,11 +62,11 @@ public class CFind {
     ArrayList<String> args = new ArrayList<>();
     // -c,--connect <aet@host:port> specify AE Title, remote address
     args.add("--connect");
-    args.add(job.getCalled() + "@" + job.getHostname() + ":" + job.getCalledPort());
+    args.add(job.getCalledAET() + "@" + job.getHostname() + ":" + job.getCalledPort());
 
     // -b,--bind <aet[@ip][:port]> specify AE Title, local address
     args.add("--bind");
-    args.add(job.getCalling());
+    args.add(job.getCalledAET());
 
     // -L <PATIENT|STUDY|SERIES|IMAGE> specifies retrieve level. Use
     args.add("-L");
@@ -78,7 +81,10 @@ public class CFind {
     // What we need back
     args.add("-r");
     args.add("StudyInstanceUID");
+    args.add("-r");
     args.add("SeriesInstanceUID");
+
+    logger.info(args.toString());
 
     CommandLine cl = FindSCU.parseComandLine(args.toArray(new String[args.size()]));
     FindSCU main = new FindSCU();

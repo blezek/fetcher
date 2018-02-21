@@ -1,6 +1,5 @@
 package org.fetcher;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -8,23 +7,28 @@ import com.google.common.util.concurrent.RateLimiter;
 
 import org.dcm4che3.data.Tag;
 import org.fetcher.dicom.CFind;
-import org.fetcher.model.Job;
 import org.fetcher.model.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import io.dropwizard.hibernate.UnitOfWork;
-import io.dropwizard.jackson.JsonSnakeCase;
-
-@JsonSnakeCase
 public class Fetcher {
   static Logger logger = LoggerFactory.getLogger(Fetcher.class);
-  Job job;
+
+  public String name = "default";
+  public String calledAET = "pacs";
+  public int calledPort = 1234;
+  public String hostname = "example.com";
+  public String callingAET = "fetcher";
+  public String destinationAET = "fetcher";
+  public String fetchBy = "STUDY";
+  public int queriesPerSecond = 2;
+  public int concurrentQueries = 5;
+  public int movesPerSecond = 2;
+  public int concurrentMoves = 5;
 
   enum FetcherState {
     STOPPED, RUNNING
@@ -38,14 +42,7 @@ public class Fetcher {
   ThreadPoolExecutor movePool;
   ThreadPoolExecutor queryPool;
 
-  public Fetcher(Job job) {
-    this.job = job;
-  }
-
-  @JsonIgnore
-  public void update(Job job) {
-    throwIfStateIsNot(FetcherState.STOPPED);
-    this.job = job;
+  public Fetcher() {
   }
 
   /**
@@ -55,11 +52,6 @@ public class Fetcher {
     if (state != expected) {
       throw new IllegalArgumentException("expected state to be " + expected + " was " + state);
     }
-  }
-
-  @JsonProperty
-  public Job getJob() {
-    return job;
   }
 
   @JsonProperty("status")
@@ -77,12 +69,12 @@ public class Fetcher {
     }
     p = node.putObject("query");
     p.put("count", Main.jdbi.withHandle(handle -> {
-      return handle.createQuery("select count(*) from query where job_id = ?").bind(0, job.getJobId()).mapTo(Integer.TYPE).first();
+      return handle.createQuery("select count(*) from query where jobId = ?").bind(0, jobId).mapTo(Integer.TYPE).first();
     }));
     // Breakdown by state
     for (State s : State.values()) {
       p.put(s.toString().toLowerCase(), Main.jdbi.withHandle(handle -> {
-        return handle.createQuery("select count(*) from query where job_id = ? and status = ?").bind(0, job.getJobId()).bind(1, s.toString()).mapTo(Integer.TYPE).first();
+        return handle.createQuery("select count(*) from query where jobId = ? and status = ?").bind(0, jobId).bind(1, s.toString()).mapTo(Integer.TYPE).first();
       }));
     }
     return node;
@@ -91,18 +83,17 @@ public class Fetcher {
   public void queueAll() {
     throwIfStateIsNot(FetcherState.STOPPED);
     Main.jdbi.useHandle(handle -> {
-      handle.createStatement("update query set status = :status where job_id = :job_id").bind("status", State.QUEUED.toString()).bind("job_id", job.getJobId()).execute();
+      handle.createStatement("update query set status = :status, message = :message where jobId = :jobId").bind("status", State.QUEUED.toString()).bind("jobId", jobId).bind("message", (String) null).execute();
     });
   }
 
   public void queue(int qid) {
     throwIfStateIsNot(FetcherState.STOPPED);
     Main.jdbi.useHandle(handle -> {
-      handle.createStatement("update query set status = :status where job_id = :job_id and queue_id = :queue_id").bind("status", State.SUCCEEDED.toString()).bind("job_id", job.getJobId()).bind("queue_id", qid).execute();
+      handle.createStatement("update query set status = :status where jobId = :jobId and queue_id = :queue_id").bind("status", State.SUCCEEDED.toString()).bind("jobId", jobId).bind("queue_id", qid).execute();
     });
   }
 
-  @UnitOfWork
   public void start() {
 
     if (state == FetcherState.RUNNING) {
@@ -110,35 +101,33 @@ public class Fetcher {
     }
     state = FetcherState.RUNNING;
 
-    moveLimit = RateLimiter.create(job.getMovesPerSecond());
-    queryLimit = RateLimiter.create(job.getQueriesPerSecond());
-    movePool = new ThreadPoolExecutor(job.getConcurrentMoves(), job.getConcurrentMoves(), 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
-    queryPool = new ThreadPoolExecutor(job.getConcurrentQueries(), job.getConcurrentQueries(), 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+    moveLimit = RateLimiter.create(getMovesPerSecond());
+    queryLimit = RateLimiter.create(getQueriesPerSecond());
+    movePool = new ThreadPoolExecutor(getConcurrentMoves(), getConcurrentMoves(), 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+    queryPool = new ThreadPoolExecutor(getConcurrentQueries(), getConcurrentQueries(), 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
 
-    List<Integer> l = Main.jdbi.withHandle(handle -> {
-      return handle.createQuery("select query_id from query where job_id = ? and status = ?").bind(0, job.getJobId()).bind(1, State.QUEUED).mapTo(Integer.TYPE).list();
-    });
-    job = Main.jobDAO.update(job);
     // Push them all into the queue
-    for (Query query : job.getQueries()) {
+    for (Query query : Main.jobDAO.getQueries(job)) {
       queryPool.execute(() -> {
         // Execute the DICOM query
         logger.info("query for " + query);
         Main.jdbi.useHandle(handle -> {
-          handle.update("delete from move where query_id = ?", query.getId());
+          handle.update("delete from move where queryId = ?", query.queryId);
         });
         CFind find = new CFind(job, query);
         try {
           find.execute(data -> {
             logger.info("Got data: " + data);
             Main.jdbi.useHandle(handle -> {
-              handle.update("insert into move (study_instance_uid, series_instance_uid, status, message ) values ( ?, ?, ?, ? )", data.getString(Tag.StudyInstanceUID, null), data.getString(Tag.SeriesInstanceUID, null), State.CREATED.toString(), null);
+              handle.createStatement("insert into move (jobId, queryId, studyInstanceUID, seriesInstanceUID, status ) values ( ?, ?, ?, ?, ? )").bind(0, getJobId()).bind(1, query.getQueryId()).bind(2, data.getString(Tag.StudyInstanceUID, (String) null))
+                  .bind(3, data.getString(Tag.SeriesInstanceUID, (String) null)).bind(4, State.CREATED.toString()).execute();
             });
           });
         } catch (Exception e) {
-          query.setStatus(State.FAILED);
-          query.setMessage(e.getMessage());
-          Main.queueDAO.update(query);
+          query.status = State.FAILED.toString();
+          query.message = e.getMessage();
+          logger.error("Error in query", e);
+          Main.queryDAO.update(query);
         }
       });
     }

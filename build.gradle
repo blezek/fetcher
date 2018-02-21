@@ -40,13 +40,12 @@ dependencies {
   def excludes = {
     exclude group: 'org.slf4j', module: 'slf4j-log4j12'
   }
+  
   // https://mvnrepository.com/artifact/org.dcm4che/dcm4che-core
   compile group: 'org.dcm4che', name: 'dcm4che-core', version: '5.12.0', excludes
   compile group: 'org.dcm4che', name: 'dcm4che-net', version: '5.12.0', excludes
   compile group: 'org.dcm4che.tool', name: 'dcm4che-tool-findscu', version: '5.12.0', excludes
 
-
-  
   testCompile (
     'io.dropwizard:dropwizard-testing:' + dropwizardVersion,
   )

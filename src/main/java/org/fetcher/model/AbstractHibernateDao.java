@@ -36,10 +36,6 @@ public class AbstractHibernateDao<T> extends AbstractDAO<T> {
     currentSession().persist(entity);
   }
 
-  public T merge(T entity) {
-    return update(entity);
-  }
-
   public T update(T entity) {
     return (T) currentSession().merge(entity);
   }

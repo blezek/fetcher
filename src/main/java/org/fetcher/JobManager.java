@@ -1,7 +1,6 @@
 package org.fetcher;
 
 import org.fetcher.model.Job;
-import org.fetcher.model.JobDAO;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,11 +11,6 @@ import io.dropwizard.lifecycle.Managed;
 public class JobManager implements Managed {
 
   ConcurrentHashMap<Integer, Fetcher> fetchers = new ConcurrentHashMap<>();
-  private JobDAO jobDAO;
-
-  public JobManager(JobDAO jobDAO) {
-    this.jobDAO = jobDAO;
-  }
 
   public Fetcher getById(int id) {
     return fetchers.get(id);
@@ -24,7 +18,7 @@ public class JobManager implements Managed {
 
   @UnitOfWork
   public Fetcher create(Job job) {
-    jobDAO.presist(job);
+    job.jobId = Main.jobDAO.save(job);
     Fetcher f = new Fetcher(job);
     fetchers.put(job.getJobId(), f);
     return f;
@@ -33,7 +27,7 @@ public class JobManager implements Managed {
   @Override
   @UnitOfWork
   public void start() throws Exception {
-    for (Job job : this.jobDAO.findAll()) {
+    for (Job job : Main.jobDAO.findAll()) {
       fetchers.put(job.getJobId(), new Fetcher(job));
     }
   }

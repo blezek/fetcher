@@ -62,7 +62,11 @@ public class JobResource {
   @Path("{id}/queue")
   public Fetcher queueAll(@PathParam("id") int id) {
     Fetcher f = manager.getById(id);
-    f.queueAll();
+    try {
+      f.queueAll();
+    } catch (Exception e) {
+      throw new WebApplicationException(e.getLocalizedMessage(), Status.INTERNAL_SERVER_ERROR);
+    }
     return f;
   }
 
@@ -85,7 +89,6 @@ public class JobResource {
   }
 
   @POST
-  @UnitOfWork
   public Fetcher create(Job job) {
     return manager.create(job);
   }
