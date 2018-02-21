@@ -1,0 +1,7 @@
+/bin/
+.settings
+.classpath
+.gradle
+DW
+access.log
+build
