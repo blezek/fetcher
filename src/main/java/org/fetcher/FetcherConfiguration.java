@@ -23,4 +23,14 @@ public class FetcherConfiguration extends Configuration {
   public DataSourceFactory getDataSourceFactory() {
     return dataSourceFactory;
   }
+
+  @NotNull
+  @Valid
+  private Fetcher fetcher = new Fetcher();
+
+  @JsonProperty("fetch")
+  public Fetcher getFetcher() {
+    return fetcher;
+  }
+
 }

@@ -2,9 +2,9 @@ package org.fetcher;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.fetcher.model.JobDAO;
 import org.fetcher.model.QueryDAO;
-import org.fetcher.resource.JobResource;
+import org.fetcher.resource.FetcherResource;
+import org.fetcher.resource.QueryResource;
 import org.skife.jdbi.v2.DBI;
 
 import java.io.File;
@@ -20,7 +20,6 @@ public class Main extends Application<FetcherConfiguration> {
 
   public static DBI jdbi;
   static File homePath = null;
-  public static JobDAO jobDAO;
   public static ObjectMapper objectMapper;
 
   public static void main(String[] args) throws Exception {
@@ -50,12 +49,11 @@ public class Main extends Application<FetcherConfiguration> {
   public void run(FetcherConfiguration configuration, Environment environment) throws Exception {
     jdbi = new DBIFactory().build(environment, configuration.getDataSourceFactory(), "jbdi");
     queryDAO = jdbi.onDemand(QueryDAO.class);
-    jobDAO = jdbi.onDemand(JobDAO.class);
 
-    JobManager jobManager = new JobManager();
-    environment.jersey().register(new JobResource(jobManager));
+    environment.jersey().register(new FetcherResource(configuration.getFetcher()));
+    environment.jersey().register(new QueryResource(configuration.getFetcher()));
 
-    environment.lifecycle().manage(jobManager);
+    environment.lifecycle().manage(configuration.getFetcher());
     objectMapper = environment.getObjectMapper();
     environment.jersey().register(new JsonProcessingExceptionMapper(true));
 

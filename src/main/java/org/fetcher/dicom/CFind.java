@@ -6,7 +6,7 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.Status;
-import org.fetcher.model.Job;
+import org.fetcher.Fetcher;
 import org.fetcher.model.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,11 +21,12 @@ import java.util.concurrent.ScheduledExecutorService;
 public class CFind {
   static Logger logger = LoggerFactory.getLogger(CFind.class);
 
-  private Job job;
   private Query query;
 
-  public CFind(Job job, Query query) {
-    this.job = job;
+  private Fetcher fetcher;
+
+  public CFind(Fetcher fetcher, Query query) {
+    this.fetcher = fetcher;
     this.query = query;
   }
 
@@ -62,15 +63,15 @@ public class CFind {
     ArrayList<String> args = new ArrayList<>();
     // -c,--connect <aet@host:port> specify AE Title, remote address
     args.add("--connect");
-    args.add(job.getCalledAET() + "@" + job.getHostname() + ":" + job.getCalledPort());
+    args.add(fetcher.getCalledAET() + "@" + fetcher.getHostname() + ":" + fetcher.getCalledPort());
 
     // -b,--bind <aet[@ip][:port]> specify AE Title, local address
     args.add("--bind");
-    args.add(job.getCalledAET());
+    args.add(fetcher.getCalledAET());
 
     // -L <PATIENT|STUDY|SERIES|IMAGE> specifies retrieve level. Use
     args.add("-L");
-    args.add(job.getFetchBy());
+    args.add(fetcher.getFetchBy());
 
     // Attributes
     for (Entry<String, String> i : query.getQueryAttributes().entrySet()) {
@@ -83,6 +84,8 @@ public class CFind {
     args.add("StudyInstanceUID");
     args.add("-r");
     args.add("SeriesInstanceUID");
+    args.add("-r");
+    args.add("NumberOfSeriesRelatedInstances");
 
     logger.info(args.toString());
 
