@@ -42,7 +42,7 @@ public class FetcherResource {
   @Path("find/stop")
   @UnitOfWork
   public Fetcher stop() throws InterruptedException {
-    fetcher.stop();
+    fetcher.stopFind();
     return fetcher;
   }
 

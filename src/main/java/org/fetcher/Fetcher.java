@@ -5,7 +5,6 @@ import javax.validation.constraints.Min;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -37,9 +36,6 @@ public class Fetcher implements Managed {
   public String callingAET = "fetcher";
   public String destinationAET = "fetcher";
 
-  @JsonIgnore
-  public String fetchBy = "SERIES";
-
   @Min(1)
   public int queriesPerSecond = 2;
   @Min(1)
@@ -48,7 +44,7 @@ public class Fetcher implements Managed {
   @Min(1)
   public int concurrentMoves = 5;
   @Min(1)
-  public int imagesPerSecond = 100;
+  public int imagesPerSecond = 10;
 
   enum FetcherState {
     STOPPED, RUNNING
@@ -64,6 +60,7 @@ public class Fetcher implements Managed {
   ThreadPoolExecutor queryPool;
 
   private LinkedBlockingQueue<Runnable> moveQueue;
+  private LinkedBlockingQueue<Runnable> queryQueue;
 
   public Fetcher() {
   }
@@ -81,15 +78,15 @@ public class Fetcher implements Managed {
   public JsonNode getPools() {
     ObjectNode node = Main.objectMapper.createObjectNode();
     ObjectNode p = node.putObject("pool");
-    if (findState == FetcherState.RUNNING) {
-      ObjectNode n;
-      n = p.putObject("query");
-      n.put("active_count", queryPool.getActiveCount());
-      n.put("completed_count", queryPool.getCompletedTaskCount());
-      n = node.putObject("move");
-      n.put("active_count", movePool.getActiveCount());
-      n.put("completed_count", movePool.getCompletedTaskCount());
-    }
+    ObjectNode n;
+
+    n = p.putObject("find");
+    n.put("active_count", queryPool.getActiveCount());
+    n.put("completed_count", queryPool.getCompletedTaskCount());
+    n = p.putObject("move");
+    n.put("active_count", movePool.getActiveCount());
+    n.put("completed_count", movePool.getCompletedTaskCount());
+
     p = node.putObject("query");
     p.put("count", Main.jdbi.withHandle(handle -> {
       return handle.createQuery("select count(*) from query").mapTo(Integer.TYPE).first();
@@ -137,11 +134,12 @@ public class Fetcher implements Managed {
 
   @Override
   public void start() {
-    moveLimit = RateLimiter.create(imagesPerSecond);
-    queryLimit = RateLimiter.create(queriesPerSecond);
+    moveLimit = RateLimiter.create(imagesPerSecond, 1, TimeUnit.MINUTES);
+    queryLimit = RateLimiter.create(queriesPerSecond, 1, TimeUnit.MINUTES);
     moveQueue = new LinkedBlockingQueue<>();
+    queryQueue = new LinkedBlockingQueue<>();
     movePool = new ThreadPoolExecutor(concurrentMoves, concurrentMoves, 0L, TimeUnit.MILLISECONDS, moveQueue);
-    queryPool = new ThreadPoolExecutor(concurrentQueries, concurrentQueries, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<Runnable>());
+    queryPool = new ThreadPoolExecutor(concurrentQueries, concurrentQueries, 0L, TimeUnit.MILLISECONDS, queryQueue);
   }
 
   public void startMove() {
@@ -168,7 +166,7 @@ public class Fetcher implements Managed {
     movePool.execute(() -> {
       logger.info("move " + key);
       Move move = Main.queryDAO.getMove(key);
-      moveLimit.acquire(move.getNumberOfSeriesRelatedInstances());
+      // moveLimit.acquire(move.getNumberOfSeriesRelatedInstances());
       CMove cMove = new CMove(this, move);
       try {
         cMove.execute(data -> {
@@ -212,8 +210,12 @@ public class Fetcher implements Managed {
               m.setQueryId(query.getQueryId());
               m.setStudyInstanceUID(data.getString(Tag.StudyInstanceUID, (String) null));
               m.setSeriesInstanceUID(data.getString(Tag.SeriesInstanceUID, (String) null));
+              m.setPatientId(data.getString(Tag.PatientID, null));
+              m.setPatientName(data.getString(Tag.PatientName, null));
+              m.setAccessionNumber(data.getString(Tag.AccessionNumber, null));
               m.setNumberOfSeriesRelatedInstances(data.getInt(Tag.NumberOfSeriesRelatedInstances, 0));
               m.setStatus(State.CREATED.toString());
+              m.setQueryRetrieveLevel(query.getQueryRetrieveLevel());
 
               int key = Main.queryDAO.createMove(m);
               if (moveState == FetcherState.RUNNING) {
@@ -231,6 +233,12 @@ public class Fetcher implements Managed {
     }
   }
 
+  public void stopFind() {
+    ArrayList<Runnable> drain = new ArrayList<>();
+    moveQueue.drainTo(drain);
+    findState = FetcherState.STOPPED;
+  }
+
   /**
    * Stop processing and wait for all pools to stop
    * 
@@ -238,11 +246,6 @@ public class Fetcher implements Managed {
    */
   @Override
   public void stop() throws InterruptedException {
-    if (findState == FetcherState.STOPPED) {
-      return;
-    }
-
-    findState = FetcherState.STOPPED;
 
     movePool.shutdownNow();
     queryPool.shutdownNow();
@@ -306,14 +309,6 @@ public class Fetcher implements Managed {
     this.destinationAET = destinationAET;
   }
 
-  public String getFetchBy() {
-    return fetchBy;
-  }
-
-  public void setFetchBy(String fetchBy) {
-    this.fetchBy = fetchBy;
-  }
-
   public int getConcurrentQueries() {
     return concurrentQueries;
   }
@@ -328,6 +323,10 @@ public class Fetcher implements Managed {
 
   public void setConcurrentMoves(int concurrentMoves) {
     this.concurrentMoves = concurrentMoves;
+  }
+
+  public RateLimiter getMoveLimit() {
+    return moveLimit;
   }
 
 }

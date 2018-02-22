@@ -10,7 +10,11 @@ public class Move {
   private Long queryId;
   private String studyInstanceUID;
   private String seriesInstanceUID;
+  public String patientName;
+  public String patientId;
+  public String accessionNumber;
   private Integer numberOfSeriesRelatedInstances;
+  private String queryRetrieveLevel;
   private String status;
   private String message;
 
@@ -81,6 +85,38 @@ public class Move {
       map.put("SeriesInstanceUID", seriesInstanceUID);
     }
     return map;
+  }
+
+  public String getPatientName() {
+    return patientName;
+  }
+
+  public void setPatientName(String patientName) {
+    this.patientName = patientName;
+  }
+
+  public String getPatientId() {
+    return patientId;
+  }
+
+  public void setPatientId(String patientId) {
+    this.patientId = patientId;
+  }
+
+  public String getAccessionNumber() {
+    return accessionNumber;
+  }
+
+  public void setAccessionNumber(String accessionNumber) {
+    this.accessionNumber = accessionNumber;
+  }
+
+  public String getQueryRetrieveLevel() {
+    return queryRetrieveLevel;
+  }
+
+  public void setQueryRetrieveLevel(String queryRetrieveLevel) {
+    this.queryRetrieveLevel = queryRetrieveLevel;
   }
 
 }

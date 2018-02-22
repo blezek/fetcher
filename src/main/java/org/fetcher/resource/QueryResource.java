@@ -86,14 +86,11 @@ public class QueryResource {
   @DELETE
   @Path("{id}")
   @UnitOfWork
-  public Query delete(@PathParam("id") int queryId, Query q) {
-    int count = exists(queryId);
-    if (count != 1) {
-      throw new WebApplicationException("query does not exist in the job", Status.NOT_FOUND);
-    }
-    // q.setJob(job);
-    // Main.queryDAO.delete(q);
-    return q;
+  public String delete(@PathParam("id") int queryId) {
+    Main.jdbi.useHandle(handle -> {
+      handle.update("delete from query where queryId = ?", queryId);
+    });
+    return "deleted";
   }
 
   /**

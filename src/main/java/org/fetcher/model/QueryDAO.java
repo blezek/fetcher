@@ -11,11 +11,11 @@ import java.util.List;
 
 public interface QueryDAO {
 
-  @SqlUpdate("insert into query ( patientName, patientId, accessionNumber, studyDate, status, message ) values ( :q.patientName, :q.patientId, :q.accessionNumber, :q.studyDate, :q.status, :q.message )")
+  @SqlUpdate("insert into query ( patientName, patientId, accessionNumber, studyDate, queryRetrieveLevel, status, message ) values ( :q.patientName, :q.patientId, :q.accessionNumber, :q.studyDate, :q.queryRetrieveLevel, :q.status, :q.message )")
   @GetGeneratedKeys
   int createQuery(@BindBean("q") Query q);
 
-  @SqlUpdate("update query set patientName = :q.patientName, patientId = :q.patientId, accessionNumber = :q.accessionNumber, studyDate = :q.studyDate, status = :q.status, message = :q.message where queryId = :q.queryId")
+  @SqlUpdate("update query set patientName = :q.patientName, patientId = :q.patientId, accessionNumber = :q.accessionNumber, studyDate = :q.studyDate, status = :q.status, message = :q.message, queryRetrieveLevel = :m.queryRetrieveLevel where queryId = :q.queryId")
   public void update(@BindBean("q") Query query);
 
   @SqlQuery("select * from query")
@@ -26,7 +26,7 @@ public interface QueryDAO {
   @MapResultAsBean
   List<Move> getMoves(@Bind("id") int queryId);
 
-  @SqlUpdate("insert into move (queryId, studyInstanceUID, seriesInstanceUID, numberOfSeriesRelatedInstances, status, message ) values ( :m.queryId, :m.studyInstanceUID, :m.seriesInstanceUID, :m.numberOfSeriesRelatedInstances, :m.status, :m.message )")
+  @SqlUpdate("insert into move (queryId, studyInstanceUID, seriesInstanceUID, patientName, patientId, accessionNumber, numberOfSeriesRelatedInstances, queryRetrieveLevel, status, message ) values ( :m.queryId, :m.studyInstanceUID, :m.seriesInstanceUID, :m.patientName, :m.patientId, :m.accessionNumber, :m.numberOfSeriesRelatedInstances, :m.queryRetrieveLevel, :m.status, :m.message )")
   @GetGeneratedKeys
   int createMove(@BindBean("m") Move m);
 

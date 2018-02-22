@@ -71,7 +71,7 @@ public class CFind {
 
     // -L <PATIENT|STUDY|SERIES|IMAGE> specifies retrieve level. Use
     args.add("-L");
-    args.add(fetcher.getFetchBy());
+    args.add(query.getQueryRetrieveLevel());
 
     // Attributes
     for (Entry<String, String> i : query.getQueryAttributes().entrySet()) {
@@ -84,6 +84,12 @@ public class CFind {
     args.add("StudyInstanceUID");
     args.add("-r");
     args.add("SeriesInstanceUID");
+    args.add("-r");
+    args.add("PatientID");
+    args.add("-r");
+    args.add("PatientName");
+    args.add("-r");
+    args.add("AccessionNumber");
     args.add("-r");
     args.add("NumberOfSeriesRelatedInstances");
 

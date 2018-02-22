@@ -16,6 +16,7 @@ public class Query implements Serializable {
   public String patientId;
   public String accessionNumber;
   public Date studyDate;
+  private String queryRetrieveLevel = "STUDY";
   public String status;
   public String message;
 
@@ -100,5 +101,13 @@ public class Query implements Serializable {
 
   public void setJobId(long jobId) {
     this.jobId = jobId;
+  }
+
+  public String getQueryRetrieveLevel() {
+    return queryRetrieveLevel;
+  }
+
+  public void setQueryRetrieveLevel(String queryRetrieveLevel) {
+    this.queryRetrieveLevel = queryRetrieveLevel;
   }
 }
