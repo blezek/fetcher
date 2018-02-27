@@ -204,13 +204,13 @@ public class Fetcher implements Managed {
           return moveState != FetcherState.STOPPED;
         });
         Main.jdbi.useHandle(handle -> {
-          handle.execute("update move set status = ?, message = ? where moveId = ?", State.SUCCEEDED.toString(), null, move.getMoveId());
+          handle.execute("update move set status = ?, message = ? where moveId = ?", State.SUCCEEDED.toString(), "", move.getMoveId());
         });
-        Broadcaster.broadcast("moved " + move.getPatientId() + " / " + move.getPatientName() + " / " + move.getAccessionNumber());
+        Broadcaster.broadcast("moved completed " + move.getPatientId() + " / " + move.getPatientName() + " / " + move.getAccessionNumber());
       } catch (Exception e) {
         logger.error("Error in move", e);
         Main.jdbi.useHandle(handle -> {
-          handle.execute("update move set status = ?, message = ? where moveId = ?", State.SUCCEEDED.toString(), e.getLocalizedMessage(), move.getMoveId());
+          handle.execute("update move set status = ?, message = ? where moveId = ?", State.FAILED.toString(), e.getLocalizedMessage(), move.getMoveId());
         });
       }
     });

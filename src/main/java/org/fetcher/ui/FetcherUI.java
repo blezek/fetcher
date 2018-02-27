@@ -54,9 +54,9 @@ public class FetcherUI extends UI implements Broadcaster.BroadcastListener {
     Button startQuery = new Button("Start");
     startQuery.addClickListener(click -> {
       if (!fetcher.isQueryRunning()) {
-        startQuery.setCaption("Start");
+        startQuery.setCaption("Stop");
         fetcher.startFind();
-        Notification.show("stopping find");
+        Notification.show("starting find");
       } else {
         fetcher.stopFind();
         startQuery.setCaption("Start");

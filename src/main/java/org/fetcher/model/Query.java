@@ -25,13 +25,13 @@ public class Query implements Serializable {
   public Map<String, String> getQueryAttributes() {
     HashMap<String, String> map = new HashMap<>();
     // Attributes
-    if (patientName != null) {
+    if (patientName != null && !patientName.isEmpty()) {
       map.put("PatientName", patientName);
     }
-    if (patientId != null) {
+    if (patientId != null && !patientId.isEmpty()) {
       map.put("PatientID", patientId);
     }
-    if (accessionNumber != null) {
+    if (accessionNumber != null && !accessionNumber.isEmpty()) {
       map.put("AccessionNumber", accessionNumber);
     }
     if (studyDate != null) {

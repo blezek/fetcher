@@ -42,9 +42,17 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
       refresh();
     });
     Button addQuery = new Button("Add", click -> {
+      if (Main.fetcher.isQueryRunning()) {
+        Notification.show("Stop query before editing query", Notification.Type.ERROR_MESSAGE);
+        return;
+      }
       ui.addWindow(new AddQueryDialog(() -> refresh()));
     });
     Button editQuery = new Button("Edit", click -> {
+      if (Main.fetcher.isQueryRunning()) {
+        Notification.show("Stop query before editing query", Notification.Type.ERROR_MESSAGE);
+        return;
+      }
       grid.getSelectedItems().forEach(c -> {
         ui.addWindow(new AddQueryDialog(c, () -> refresh()));
       });
