@@ -7,3 +7,4 @@ access.log
 build
 src/main/js/node_modules
 src/main/js/elm-stuff
+temp
