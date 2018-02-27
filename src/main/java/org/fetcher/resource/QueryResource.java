@@ -15,33 +15,31 @@ import javax.ws.rs.core.Response.Status;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import org.fetcher.Fetcher;
 import org.fetcher.Main;
-import org.fetcher.model.Job;
+import org.fetcher.State;
+import org.fetcher.model.Move;
 import org.fetcher.model.Query;
 import org.skife.jdbi.v2.exceptions.CallbackFailedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Set;
+import java.util.List;
 
-import io.dropwizard.hibernate.UnitOfWork;
-
+@Path("query")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class QueryResource {
   static Logger logger = LoggerFactory.getLogger(QueryResource.class);
+  private Fetcher fetcher;
 
-  Job job;
-
-  public QueryResource(Job job) {
-    this.job = job;
+  public QueryResource(Fetcher fetcher) {
+    this.fetcher = fetcher;
   }
 
   @GET
-  @UnitOfWork
   public JsonNode getAll() {
-    job = Main.jobDAO.update(job);
-    Set<Query> q = job.getQueries();
+    List<Query> q = Main.queryDAO.getQueries();
     for (Query query : q) {
       logger.info(query.toString());
     }
@@ -51,38 +49,41 @@ public class QueryResource {
   }
 
   @POST
-  @UnitOfWork
   public Query create(Query q) {
-
-    q.setJob(job);
-    Main.queueDAO.create(q);
+    q.status = State.CREATED.toString();
+    q.queryId = Main.queryDAO.createQuery(q);
     return q;
   }
 
   @PUT
   @Path("{id}")
-  @UnitOfWork
   public Query update(@PathParam("id") int queryId, Query q) {
     int count = exists(queryId);
     if (count != 1) {
       throw new WebApplicationException("query does not exist in the job", Status.NOT_FOUND);
     }
-    q.setJob(job);
-    Main.queueDAO.merge(q);
+    Main.queryDAO.update(q);
     return q;
+  }
+
+  @GET
+  @Path("{id}/moves")
+  public JsonNode getMoves(@PathParam("id") int queryId) {
+    int count = exists(queryId);
+    if (count != 1) {
+      throw new WebApplicationException("query does not exist", Status.NOT_FOUND);
+    }
+    List<Move> q = Main.queryDAO.getMoves(queryId);
+    ObjectNode n = Main.objectMapper.createObjectNode();
+    n.putPOJO("query", q);
+    return n;
   }
 
   @DELETE
   @Path("{id}")
-  @UnitOfWork
-  public Query delete(@PathParam("id") int queryId, Query q) {
-    int count = exists(queryId);
-    if (count != 1) {
-      throw new WebApplicationException("query does not exist in the job", Status.NOT_FOUND);
-    }
-    q.setJob(job);
-    Main.queueDAO.delete(q);
-    return q;
+  public String delete(@PathParam("id") long queryId) {
+    Main.queryDAO.delete(queryId);
+    return "deleted";
   }
 
   /**
@@ -93,7 +94,7 @@ public class QueryResource {
   public int exists(int queryId) throws CallbackFailedException {
     // Check to see if it exists
     int count = Main.jdbi.withHandle(handle -> {
-      return handle.createQuery("select count(*) from query where query_id = :query_id and job_id = :job_id").bind("query_id", queryId).bind("job_id", job.getJobId()).mapTo(Integer.class).first();
+      return handle.createQuery("select count(*) from query where queryId = :queryId").bind("queryId", queryId).mapTo(Integer.class).first();
     });
     return count;
   }

@@ -505,8 +505,9 @@ public class FindSCU {
       if (xml) {
         writeAsXML(data, out);
       } else {
-        DicomOutputStream dos = new DicomOutputStream(out, UID.ImplicitVRLittleEndian);
-        dos.writeDataset(null, data);
+        try (DicomOutputStream dos = new DicomOutputStream(out, UID.ImplicitVRLittleEndian)) {
+          dos.writeDataset(null, data);
+        }
       }
       out.flush();
     } catch (Exception e) {

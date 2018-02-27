@@ -1,16 +1,6 @@
 package org.fetcher.model;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.Table;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.fetcher.State;
 
@@ -20,57 +10,28 @@ import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
 
-@Entity
-@Table(name = "query")
 public class Query implements Serializable {
   private static final long serialVersionUID = 1L;
-
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(name = "query_id")
-  @JsonProperty("query_id")
-  private long id;
-
-  @Column(name = "patient_name")
-  @JsonProperty("patient_name")
-  private String patientName;
-
-  @Column(name = "patient_id")
-  @JsonProperty("patient_id")
-  private String patientId;
-
-  @Column(name = "accession_number")
-  @JsonProperty("accession_number")
-  private String accessionNumber;
-
-  @Column(name = "study_date")
-  @JsonProperty("study_date")
-  private Date studyDate;
-
-  @Column(name = "status")
-  @JsonProperty("status")
-  private String status;
-
-  @Column(name = "message")
-  @JsonProperty("message")
-  private String message;
-
-  @ManyToOne
-  @JoinColumn(name = "job_id", nullable = false)
-  @JsonIgnore
-  private Job job;
+  public long queryId;
+  public String patientName;
+  public String patientId;
+  public String accessionNumber;
+  public Date studyDate;
+  private String queryRetrieveLevel = "STUDY";
+  public String status = State.CREATED.toString();;
+  public String message;
 
   @JsonIgnore
   public Map<String, String> getQueryAttributes() {
     HashMap<String, String> map = new HashMap<>();
     // Attributes
-    if (patientName != null) {
+    if (patientName != null && !patientName.isEmpty()) {
       map.put("PatientName", patientName);
     }
-    if (patientId != null) {
-      map.put("PatienId", patientId);
+    if (patientId != null && !patientId.isEmpty()) {
+      map.put("PatientID", patientId);
     }
-    if (accessionNumber != null) {
+    if (accessionNumber != null && !accessionNumber.isEmpty()) {
       map.put("AccessionNumber", accessionNumber);
     }
     if (studyDate != null) {
@@ -79,12 +40,12 @@ public class Query implements Serializable {
     return map;
   }
 
-  public long getId() {
-    return id;
+  public long getQueryId() {
+    return queryId;
   }
 
-  public void setId(long id) {
-    this.id = id;
+  public void setQueryId(long queryId) {
+    this.queryId = queryId;
   }
 
   public String getPatientName() {
@@ -135,12 +96,11 @@ public class Query implements Serializable {
     this.message = message;
   }
 
-  public void setStatus(State state) {
-    this.status = state.toString();
+  public String getQueryRetrieveLevel() {
+    return queryRetrieveLevel;
   }
 
-  public void setJob(Job job) {
-    this.job = job;
+  public void setQueryRetrieveLevel(String queryRetrieveLevel) {
+    this.queryRetrieveLevel = queryRetrieveLevel;
   }
-
 }

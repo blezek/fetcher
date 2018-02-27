@@ -6,8 +6,10 @@ import org.dcm4che3.data.Tag;
 import org.dcm4che3.net.Association;
 import org.dcm4che3.net.DimseRSPHandler;
 import org.dcm4che3.net.Status;
-import org.fetcher.model.Job;
+import org.fetcher.Fetcher;
 import org.fetcher.model.Query;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -17,12 +19,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 public class CFind {
+  static Logger logger = LoggerFactory.getLogger(CFind.class);
 
-  private Job job;
   private Query query;
 
-  public CFind(Job job, Query query) {
-    this.job = job;
+  private Fetcher fetcher;
+
+  public CFind(Fetcher fetcher, Query query) {
+    this.fetcher = fetcher;
     this.query = query;
   }
 
@@ -59,15 +63,15 @@ public class CFind {
     ArrayList<String> args = new ArrayList<>();
     // -c,--connect <aet@host:port> specify AE Title, remote address
     args.add("--connect");
-    args.add(job.getCalled() + "@" + job.getHostname() + ":" + job.getCalledPort());
+    args.add(fetcher.getCalledAET() + "@" + fetcher.getHostname() + ":" + fetcher.getCalledPort());
 
     // -b,--bind <aet[@ip][:port]> specify AE Title, local address
     args.add("--bind");
-    args.add(job.getCalling());
+    args.add(fetcher.getCalledAET());
 
     // -L <PATIENT|STUDY|SERIES|IMAGE> specifies retrieve level. Use
     args.add("-L");
-    args.add(job.getFetchBy());
+    args.add(query.getQueryRetrieveLevel());
 
     // Attributes
     for (Entry<String, String> i : query.getQueryAttributes().entrySet()) {
@@ -78,7 +82,16 @@ public class CFind {
     // What we need back
     args.add("-r");
     args.add("StudyInstanceUID");
+    args.add("-r");
     args.add("SeriesInstanceUID");
+    args.add("-r");
+    args.add("PatientID");
+    args.add("-r");
+    args.add("PatientName");
+    args.add("-r");
+    args.add("AccessionNumber");
+
+    logger.info(args.toString());
 
     CommandLine cl = FindSCU.parseComandLine(args.toArray(new String[args.size()]));
     FindSCU main = new FindSCU();
@@ -106,7 +119,14 @@ public class CFind {
           super.onDimseRSP(as, cmd, data);
           int status = cmd.getInt(Tag.Status, -1);
           if (Status.isPending(status)) {
-            handler.onResult(data);
+            boolean shouldContinue = handler.onResult(data);
+            if (!shouldContinue) {
+              try {
+                super.cancel(as);
+              } catch (IOException e) {
+                logger.error("Failed to cancel", e);
+              }
+            }
           }
         }
       };

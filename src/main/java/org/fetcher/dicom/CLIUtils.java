@@ -422,12 +422,11 @@ public class CLIUtils {
     fsInfo.setDescriptorFileCharset(cl.getOptionValue("fs-desc-cs"));
   }
 
-  @SuppressWarnings("static-access")
   public static void addTransferSyntaxOptions(Options opts) {
     OptionGroup group = new OptionGroup();
-    group.addOption(OptionBuilder.withLongOpt("explicit-vr").withDescription(rb.getString("explicit-vr")).create());
-    group.addOption(OptionBuilder.withLongOpt("big-endian").withDescription(rb.getString("big-endian")).create());
-    group.addOption(OptionBuilder.withLongOpt("implicit-vr").withDescription(rb.getString("implicit-vr")).create());
+    // group.addOption(OptionBuilder.withLongOpt("explicit-vr").withDescription(rb.getString("explicit-vr")).create());
+    // group.addOption(OptionBuilder.withLongOpt("big-endian").withDescription(rb.getString("big-endian")).create());
+    // group.addOption(OptionBuilder.withLongOpt("implicit-vr").withDescription(rb.getString("implicit-vr")).create());
     opts.addOptionGroup(group);
   }
 
