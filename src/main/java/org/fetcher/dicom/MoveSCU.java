@@ -57,7 +57,7 @@ import org.dcm4che3.net.IncompatibleConnectionException;
 import org.dcm4che3.net.pdu.AAssociateRQ;
 import org.dcm4che3.net.pdu.ExtendedNegotiation;
 import org.dcm4che3.net.pdu.PresentationContext;
-import org.dcm4che3.tool.common.CLIUtils;
+//import org.dcm4che3.tool.common.CLIUtils;
 import org.dcm4che3.util.SafeClose;
 import org.dcm4che3.util.StringUtils;
 
@@ -75,6 +75,7 @@ import java.util.concurrent.ScheduledExecutorService;
  * @author Gunter Zeilinger <gunterze@gmail.com>
  *
  */
+@SuppressWarnings("serial")
 public class MoveSCU extends Device {
 
   private static enum InformationModel {
@@ -142,8 +143,9 @@ public class MoveSCU extends Device {
     this.inFilter = inFilter;
   }
 
-  public static CommandLine parseComandLine(String[] args) throws ParseException {
-    Options opts = new Options();
+  static Options opts = new Options();
+
+  static {
     addServiceClassOptions(opts);
     addKeyOptions(opts);
     addRetrieveLevelOption(opts);
@@ -154,6 +156,9 @@ public class MoveSCU extends Device {
     CLIUtils.addRetrieveTimeoutOption(opts);
     CLIUtils.addPriorityOption(opts);
     CLIUtils.addCommonOptions(opts);
+  }
+
+  public static CommandLine parseComandLine(String[] args) throws ParseException {
     return CLIUtils.parseComandLine(args, opts, rb, MoveSCU.class);
   }
 
@@ -174,7 +179,6 @@ public class MoveSCU extends Device {
     opts.addOption(OptionBuilder.hasArgs().withArgName("attr").withDescription(rb.getString("in-attr")).create("i"));
   }
 
-  @SuppressWarnings("static-access")
   private static void addServiceClassOptions(Options opts) {
     opts.addOption(OptionBuilder.hasArg().withArgName("name").withDescription(rb.getString("model")).create("M"));
     CLIUtils.addTransferSyntaxOptions(opts);
@@ -268,7 +272,8 @@ public class MoveSCU extends Device {
     Attributes attrs = new Attributes();
     DicomInputStream dis = null;
     try {
-      attrs.addSelected(new DicomInputStream(f).readDataset(-1, -1), inFilter);
+      dis = new DicomInputStream(f);
+      attrs.addSelected(dis.readDataset(-1, -1), inFilter);
     } finally {
       SafeClose.close(dis);
     }

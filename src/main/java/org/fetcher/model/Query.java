@@ -2,6 +2,8 @@ package org.fetcher.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import org.fetcher.State;
+
 import java.io.Serializable;
 import java.sql.Date;
 import java.text.SimpleDateFormat;
@@ -11,13 +13,12 @@ import java.util.Map;
 public class Query implements Serializable {
   private static final long serialVersionUID = 1L;
   public long queryId;
-  public long jobId;
   public String patientName;
   public String patientId;
   public String accessionNumber;
   public Date studyDate;
   private String queryRetrieveLevel = "STUDY";
-  public String status;
+  public String status = State.CREATED.toString();;
   public String message;
 
   @JsonIgnore
@@ -28,7 +29,7 @@ public class Query implements Serializable {
       map.put("PatientName", patientName);
     }
     if (patientId != null) {
-      map.put("PatienId", patientId);
+      map.put("PatientID", patientId);
     }
     if (accessionNumber != null) {
       map.put("AccessionNumber", accessionNumber);
@@ -93,14 +94,6 @@ public class Query implements Serializable {
 
   public void setMessage(String message) {
     this.message = message;
-  }
-
-  public long getJobId() {
-    return jobId;
-  }
-
-  public void setJobId(long jobId) {
-    this.jobId = jobId;
   }
 
   public String getQueryRetrieveLevel() {

@@ -12,8 +12,6 @@ import javax.ws.rs.core.Response.Status;
 
 import org.fetcher.Fetcher;
 
-import io.dropwizard.hibernate.UnitOfWork;
-
 @Path("fetch")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -32,7 +30,6 @@ public class FetcherResource {
 
   @PUT
   @Path("find/start")
-  @UnitOfWork
   public Fetcher start() {
     fetcher.startFind();
     return fetcher;
@@ -40,7 +37,6 @@ public class FetcherResource {
 
   @PUT
   @Path("find/stop")
-  @UnitOfWork
   public Fetcher stop() throws InterruptedException {
     fetcher.stopFind();
     return fetcher;
@@ -48,7 +44,6 @@ public class FetcherResource {
 
   @PUT
   @Path("move/start")
-  @UnitOfWork
   public Fetcher startMove() {
     fetcher.startMove();
     return fetcher;
@@ -56,7 +51,6 @@ public class FetcherResource {
 
   @PUT
   @Path("move/stop")
-  @UnitOfWork
   public Fetcher stopMove() throws InterruptedException {
     fetcher.stopMove();
     return fetcher;
@@ -93,7 +87,7 @@ public class FetcherResource {
 
   @PUT
   @Path("move/queue/{qid}")
-  public Fetcher queueMove(@PathParam("id") int qid) {
+  public Fetcher queueMove(@PathParam("id") long qid) {
     fetcher.queueMove(qid);
     return fetcher;
   }

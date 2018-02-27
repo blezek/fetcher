@@ -1,13 +1,17 @@
 package org.fetcher;
 
+import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response.Status;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.util.concurrent.RateLimiter;
 
 import org.dcm4che3.data.Tag;
@@ -15,9 +19,11 @@ import org.fetcher.dicom.CFind;
 import org.fetcher.dicom.CMove;
 import org.fetcher.model.Move;
 import org.fetcher.model.Query;
+import org.fetcher.ui.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -36,31 +42,40 @@ public class Fetcher implements Managed {
   public String callingAET = "fetcher";
   public String destinationAET = "fetcher";
 
-  @Min(1)
-  public int queriesPerSecond = 2;
+  @DecimalMin("0.1")
+  public double queriesPerSecond = 2;
   @Min(1)
   public int concurrentQueries = 5;
 
   @Min(1)
   public int concurrentMoves = 5;
-  @Min(1)
-  public int imagesPerSecond = 10;
+  @DecimalMin("0.1")
+  public double imagesPerSecond = 10;
 
   enum FetcherState {
     STOPPED, RUNNING
   };
 
-  FetcherState findState = FetcherState.STOPPED;
+  FetcherState queryState = FetcherState.STOPPED;
   FetcherState moveState = FetcherState.STOPPED;
 
-  RateLimiter moveLimit;
-  RateLimiter queryLimit;
+  @JsonIgnore
+  public RateLimiter moveLimit;
+  @JsonIgnore
+  public RateLimiter queryLimit;
 
-  ThreadPoolExecutor movePool;
-  ThreadPoolExecutor queryPool;
+  @JsonIgnore
+  public ThreadPoolExecutor movePool;
+  @JsonIgnore
+  public ThreadPoolExecutor queryPool;
 
-  private LinkedBlockingQueue<Runnable> moveQueue;
-  private LinkedBlockingQueue<Runnable> queryQueue;
+  @JsonIgnore
+  public LinkedBlockingQueue<Runnable> moveQueue;
+  @JsonIgnore
+  public LinkedBlockingQueue<Runnable> queryQueue;
+
+  @JsonIgnore
+  public Cache<Long, Long> imagesPerMinute = CacheBuilder.newBuilder().maximumSize(10000).expireAfterWrite(1, TimeUnit.MINUTES).build();
 
   public Fetcher() {
   }
@@ -69,8 +84,8 @@ public class Fetcher implements Managed {
    * @throws IllegalArgumentException
    */
   public void throwIfStateIsNot(FetcherState expected) throws IllegalArgumentException {
-    if (findState != expected) {
-      throw new IllegalArgumentException("expected state to be " + expected + " was " + findState);
+    if (queryState != expected) {
+      throw new IllegalArgumentException("expected state to be " + expected + " was " + queryState);
     }
   }
 
@@ -107,10 +122,10 @@ public class Fetcher implements Managed {
     });
   }
 
-  public void queue(int qid) {
+  public void queue(long l) {
     throwIfStateIsNot(FetcherState.STOPPED);
     Main.jdbi.useHandle(handle -> {
-      handle.createStatement("update query set status = :status where queueId = :queue_id").bind("status", State.QUEUED.toString()).bind("queue_id", qid).execute();
+      handle.createStatement("update query set status = :status where queryId = :queryId").bind("status", State.QUEUED.toString()).bind("queryId", l).execute();
     });
   }
 
@@ -123,7 +138,7 @@ public class Fetcher implements Managed {
     });
   }
 
-  public void queueMove(int id) {
+  public void queueMove(Long id) {
     if (moveState == FetcherState.RUNNING) {
       throw new WebApplicationException("must not be moving", Status.BAD_REQUEST);
     }
@@ -146,6 +161,7 @@ public class Fetcher implements Managed {
     if (moveState == FetcherState.RUNNING) {
       return;
     }
+    moveState = FetcherState.RUNNING;
     // Push all queued moves into the queue
     Main.jdbi.useHandle(handle -> {
 
@@ -166,15 +182,31 @@ public class Fetcher implements Managed {
     movePool.execute(() -> {
       logger.info("move " + key);
       Move move = Main.queryDAO.getMove(key);
-      // moveLimit.acquire(move.getNumberOfSeriesRelatedInstances());
+      Main.jdbi.useHandle(handle -> {
+        handle.execute("update move set status = ? where moveId = ?", State.PENDING.toString(), move.getMoveId());
+      });
+
       CMove cMove = new CMove(this, move);
       try {
         cMove.execute(data -> {
-          logger.info("Got data: " + data);
+          moveLimit.acquire();
+          logger.debug("Got data: " + data);
+
+          imagesPerMinute.put(Instant.now().toEpochMilli(), 1L);
+          String imagesMoved = data.getInt(Tag.NumberOfCompletedSuboperations, 0) + " / " + data.getInt(Tag.NumberOfRemainingSuboperations, 0) + " images moved";
+          String msg = imagesMoved + " -- " + move.getPatientId() + " / " + move.getPatientName() + " / " + move.getAccessionNumber();
+          if (Broadcaster.broadcast(msg)) {
+            Main.jdbi.useHandle(handle -> {
+              handle.execute("update move set message = ? where moveId = ?", imagesMoved, move.getMoveId());
+            });
+          }
+          // Return true if we are running
+          return moveState != FetcherState.STOPPED;
         });
         Main.jdbi.useHandle(handle -> {
           handle.execute("update move set status = ? where moveId = ?", State.SUCCEEDED.toString(), move.getMoveId());
         });
+        Broadcaster.broadcast("moved " + move.getPatientId() + " / " + move.getPatientName() + " / " + move.getAccessionNumber());
       } catch (Exception e) {
         logger.error("Error in move", e);
         Main.jdbi.useHandle(handle -> {
@@ -186,14 +218,13 @@ public class Fetcher implements Managed {
 
   public void startFind() {
 
-    if (findState == FetcherState.RUNNING) {
+    if (queryState == FetcherState.RUNNING) {
       return;
     }
-    findState = FetcherState.RUNNING;
+    queryState = FetcherState.RUNNING;
 
     // Push them all into the queue
     for (Query query : Main.queryDAO.getQueries()) {
-
       queryPool.execute(() -> {
         // Execute the DICOM query
         logger.info("query for " + query);
@@ -205,24 +236,25 @@ public class Fetcher implements Managed {
         try {
           find.execute(data -> {
             logger.info("Got data: " + data);
-            Main.jdbi.useHandle(handle -> {
-              Move m = new Move();
-              m.setQueryId(query.getQueryId());
-              m.setStudyInstanceUID(data.getString(Tag.StudyInstanceUID, (String) null));
-              m.setSeriesInstanceUID(data.getString(Tag.SeriesInstanceUID, (String) null));
-              m.setPatientId(data.getString(Tag.PatientID, null));
-              m.setPatientName(data.getString(Tag.PatientName, null));
-              m.setAccessionNumber(data.getString(Tag.AccessionNumber, null));
-              m.setNumberOfSeriesRelatedInstances(data.getInt(Tag.NumberOfSeriesRelatedInstances, 0));
-              m.setStatus(State.CREATED.toString());
-              m.setQueryRetrieveLevel(query.getQueryRetrieveLevel());
+            Move m = new Move();
+            m.setQueryId(query.getQueryId());
+            m.setStudyInstanceUID(data.getString(Tag.StudyInstanceUID, (String) null));
+            m.setSeriesInstanceUID(data.getString(Tag.SeriesInstanceUID, (String) null));
+            m.setPatientId(data.getString(Tag.PatientID, null));
+            m.setPatientName(data.getString(Tag.PatientName, null));
+            m.setAccessionNumber(data.getString(Tag.AccessionNumber, null));
+            m.setStatus(State.CREATED.toString());
+            m.setQueryRetrieveLevel(query.getQueryRetrieveLevel());
 
-              int key = Main.queryDAO.createMove(m);
-              if (moveState == FetcherState.RUNNING) {
-                queueMove(key);
-              }
-            });
+            Broadcaster.broadcast("Creating move for " + m.getPatientId() + " / " + m.getPatientName() + " / " + m.getAccessionNumber());
+            int key = Main.queryDAO.createMove(m);
+            if (moveState == FetcherState.RUNNING) {
+              queueMove(key);
+            }
+            return moveState != FetcherState.STOPPED;
           });
+          query.status = State.SUCCEEDED.toString();
+          Main.queryDAO.update(query);
         } catch (Exception e) {
           query.status = State.FAILED.toString();
           query.message = e.getMessage();
@@ -236,7 +268,7 @@ public class Fetcher implements Managed {
   public void stopFind() {
     ArrayList<Runnable> drain = new ArrayList<>();
     moveQueue.drainTo(drain);
-    findState = FetcherState.STOPPED;
+    queryState = FetcherState.STOPPED;
   }
 
   /**
@@ -257,7 +289,7 @@ public class Fetcher implements Managed {
 
   @JsonProperty("findState")
   public FetcherState getFindState() {
-    return findState;
+    return queryState;
   }
 
   @JsonProperty("moveState")
@@ -266,7 +298,7 @@ public class Fetcher implements Managed {
   }
 
   public void setState(FetcherState state) {
-    this.findState = state;
+    this.queryState = state;
   }
 
   public String getCalledAET() {
@@ -327,6 +359,14 @@ public class Fetcher implements Managed {
 
   public RateLimiter getMoveLimit() {
     return moveLimit;
+  }
+
+  public boolean isQueryRunning() {
+    return queryState == FetcherState.RUNNING;
+  }
+
+  public boolean isMoveRunning() {
+    return moveState == FetcherState.RUNNING;
   }
 
 }

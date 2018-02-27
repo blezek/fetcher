@@ -13,7 +13,6 @@ public class Move {
   public String patientName;
   public String patientId;
   public String accessionNumber;
-  private Integer numberOfSeriesRelatedInstances;
   private String queryRetrieveLevel;
   private String status;
   private String message;
@@ -48,14 +47,6 @@ public class Move {
 
   public void setSeriesInstanceUID(String seriesInstanceUID) {
     this.seriesInstanceUID = seriesInstanceUID;
-  }
-
-  public Integer getNumberOfSeriesRelatedInstances() {
-    return numberOfSeriesRelatedInstances;
-  }
-
-  public void setNumberOfSeriesRelatedInstances(Integer numberOfSeriesRelatedInstances) {
-    this.numberOfSeriesRelatedInstances = numberOfSeriesRelatedInstances;
   }
 
   public String getStatus() {

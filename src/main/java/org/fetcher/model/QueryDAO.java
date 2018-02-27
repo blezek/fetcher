@@ -15,23 +15,29 @@ public interface QueryDAO {
   @GetGeneratedKeys
   int createQuery(@BindBean("q") Query q);
 
-  @SqlUpdate("update query set patientName = :q.patientName, patientId = :q.patientId, accessionNumber = :q.accessionNumber, studyDate = :q.studyDate, status = :q.status, message = :q.message, queryRetrieveLevel = :m.queryRetrieveLevel where queryId = :q.queryId")
+  @SqlUpdate("update query set patientName = :q.patientName, patientId = :q.patientId, accessionNumber = :q.accessionNumber, studyDate = :q.studyDate, status = :q.status, message = :q.message, queryRetrieveLevel = :q.queryRetrieveLevel where queryId = :q.queryId")
   public void update(@BindBean("q") Query query);
 
   @SqlQuery("select * from query")
   @MapResultAsBean
   List<Query> getQueries();
 
+  @SqlQuery("select count(*) from query")
+  int queryCount();
+
   @SqlQuery("select * from move where queryId = :id")
   @MapResultAsBean
   List<Move> getMoves(@Bind("id") int queryId);
 
-  @SqlUpdate("insert into move (queryId, studyInstanceUID, seriesInstanceUID, patientName, patientId, accessionNumber, numberOfSeriesRelatedInstances, queryRetrieveLevel, status, message ) values ( :m.queryId, :m.studyInstanceUID, :m.seriesInstanceUID, :m.patientName, :m.patientId, :m.accessionNumber, :m.numberOfSeriesRelatedInstances, :m.queryRetrieveLevel, :m.status, :m.message )")
+  @SqlUpdate("insert into move (queryId, studyInstanceUID, seriesInstanceUID, patientName, patientId, accessionNumber, queryRetrieveLevel, status, message ) values ( :m.queryId, :m.studyInstanceUID, :m.seriesInstanceUID, :m.patientName, :m.patientId, :m.accessionNumber, :m.queryRetrieveLevel, :m.status, :m.message )")
   @GetGeneratedKeys
   int createMove(@BindBean("m") Move m);
 
   @SqlQuery("select * from move where moveId = :id")
   @MapResultAsBean
   Move getMove(@Bind("id") int id);
+
+  @SqlUpdate("delete from query where queryId = :id")
+  void delete(@Bind("id") long l);
 
 }

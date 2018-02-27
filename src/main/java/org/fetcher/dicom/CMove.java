@@ -1,7 +1,5 @@
 package org.fetcher.dicom;
 
-import com.google.common.util.concurrent.RateLimiter;
-
 import org.apache.commons.cli.CommandLine;
 import org.dcm4che3.data.Attributes;
 import org.dcm4che3.net.Association;
@@ -74,7 +72,6 @@ public class CMove {
     main.setExecutor(executorService);
     main.setScheduledExecutor(scheduledExecutorService);
 
-    RateLimiter limiter = fetcher.getMoveLimit();
     try {
       main.open();
       DimseRSPHandler rspHandler = new DimseRSPHandler(main.as.nextMessageID()) {
@@ -82,8 +79,10 @@ public class CMove {
         @Override
         public void onDimseRSP(Association as, Attributes cmd, Attributes data) {
           super.onDimseRSP(as, cmd, data);
-          handler.onResult(cmd);
-          limiter.acquire();
+          boolean shouldContinue = handler.onResult(cmd);
+          if (!shouldContinue) {
+            as.abort();
+          }
         }
       };
       main.retrieve(rspHandler);

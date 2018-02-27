@@ -26,8 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-import io.dropwizard.hibernate.UnitOfWork;
-
 @Path("query")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
@@ -51,7 +49,6 @@ public class QueryResource {
   }
 
   @POST
-  @UnitOfWork
   public Query create(Query q) {
     q.status = State.CREATED.toString();
     q.queryId = Main.queryDAO.createQuery(q);
@@ -60,7 +57,6 @@ public class QueryResource {
 
   @PUT
   @Path("{id}")
-  @UnitOfWork
   public Query update(@PathParam("id") int queryId, Query q) {
     int count = exists(queryId);
     if (count != 1) {
@@ -85,11 +81,8 @@ public class QueryResource {
 
   @DELETE
   @Path("{id}")
-  @UnitOfWork
-  public String delete(@PathParam("id") int queryId) {
-    Main.jdbi.useHandle(handle -> {
-      handle.update("delete from query where queryId = ?", queryId);
-    });
+  public String delete(@PathParam("id") long queryId) {
+    Main.queryDAO.delete(queryId);
     return "deleted";
   }
 

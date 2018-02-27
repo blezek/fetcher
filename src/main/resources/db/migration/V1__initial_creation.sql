@@ -17,7 +17,6 @@ create table move (
   patientName varchar(128),
   patientId varchar(512),
   accessionNumber varchar(512),
-  numberOfSeriesRelatedInstances int default 1,
   queryRetrieveLevel varchar(512),
   status varchar(32),
   message varchar(512)

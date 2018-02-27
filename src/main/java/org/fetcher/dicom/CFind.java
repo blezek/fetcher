@@ -90,8 +90,6 @@ public class CFind {
     args.add("PatientName");
     args.add("-r");
     args.add("AccessionNumber");
-    args.add("-r");
-    args.add("NumberOfSeriesRelatedInstances");
 
     logger.info(args.toString());
 
@@ -121,7 +119,14 @@ public class CFind {
           super.onDimseRSP(as, cmd, data);
           int status = cmd.getInt(Tag.Status, -1);
           if (Status.isPending(status)) {
-            handler.onResult(data);
+            boolean shouldContinue = handler.onResult(data);
+            if (!shouldContinue) {
+              try {
+                super.cancel(as);
+              } catch (IOException e) {
+                logger.error("Failed to cancel", e);
+              }
+            }
           }
         }
       };
