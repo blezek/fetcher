@@ -204,7 +204,7 @@ public class Fetcher implements Managed {
           return moveState != FetcherState.STOPPED;
         });
         Main.jdbi.useHandle(handle -> {
-          handle.execute("update move set status = ? where moveId = ?", State.SUCCEEDED.toString(), move.getMoveId());
+          handle.execute("update move set status = ?, message = ? where moveId = ?", State.SUCCEEDED.toString(), null, move.getMoveId());
         });
         Broadcaster.broadcast("moved " + move.getPatientId() + " / " + move.getPatientName() + " / " + move.getAccessionNumber());
       } catch (Exception e) {
