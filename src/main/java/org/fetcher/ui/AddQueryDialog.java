@@ -4,6 +4,7 @@ import com.vaadin.data.Binder;
 import com.vaadin.data.ValidationException;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.CheckBox;
+import com.vaadin.ui.ComboBox;
 import com.vaadin.ui.DateField;
 import com.vaadin.ui.FormLayout;
 import com.vaadin.ui.HorizontalLayout;
@@ -25,7 +26,7 @@ import java.time.ZoneId;
 public class AddQueryDialog extends Window {
   static Logger logger = LoggerFactory.getLogger(AddQueryDialog.class);
   Query query = null;
-  Binder<Query> binder = new Binder<>();
+  Binder<Query> binder = new Binder<>(Query.class);
   boolean isEdit = false;
   RefreshListener listener;
 
@@ -65,9 +66,17 @@ public class AddQueryDialog extends Window {
     } else {
       studyDate.setDefaultValue(null);
     }
+
+    // Create the selection component
+    ComboBox<String> select = new ComboBox<>("Query Retrieve Level");
+
+    // Add some items
+    select.setItems("PATIENT", "STUDY", "SERIES");
+    binder.bind(select, "queryRetrieveLevel");
+
     CheckBox addQueued = new CheckBox("Queued?");
     addQueued.setValue(true);
-    layout.addComponents(patientName, patientId, accessionNumber, studyDate, addQueued);
+    layout.addComponents(patientName, patientId, accessionNumber, studyDate, select, addQueued);
     Button save = new Button("Save", event -> {
       try {
         binder.writeBean(query);
