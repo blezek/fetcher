@@ -1,6 +1,7 @@
 package org.fetcher.ui;
 
 import com.vaadin.data.provider.QuerySortOrder;
+import com.vaadin.shared.data.sort.SortDirection;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.CustomComponent;
 import com.vaadin.ui.Grid;
@@ -9,6 +10,7 @@ import com.vaadin.ui.Grid.SelectionMode;
 import com.vaadin.ui.HorizontalLayout;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.UI;
+import com.vaadin.ui.Upload;
 import com.vaadin.ui.VerticalLayout;
 
 import org.fetcher.Main;
@@ -18,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("serial")
 public class QueryGrid extends CustomComponent implements RefreshListener {
@@ -84,14 +87,19 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
       Broadcaster.broadcast("");
     });
 
-    hLayout.addComponents(queue, queueAll, addQuery, editQuery, deleteButton, refresh);
+    UploadCSV csv = new UploadCSV(ui);
+    Upload upload = new Upload("Upload CSV", csv);
+    upload.addSucceededListener(csv);
+    upload.setImmediateMode(false);
+
+    hLayout.addComponents(queue, queueAll, addQuery, editQuery, deleteButton, refresh, upload);
     layout.addComponent(hLayout);
 
     grid.setDataProvider((
 
         List<QuerySortOrder> sortOrder, int offset, int limit) -> {
       return Main.jdbi.withHandle((handle) -> {
-        return handle.createQuery("select * from query offset " + offset + " rows fetch first " + limit + " rows only").map(Query.class).list().stream();
+        return handle.createQuery("select * from query " + buildSortOrder(sortOrder) + " offset " + offset + " rows fetch first " + limit + " rows only").map(Query.class).list().stream();
       });
     }, () -> {
       return Main.queryDAO.queryCount();
@@ -132,7 +140,7 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
 
     moves.setDataProvider((List<QuerySortOrder> sortOrder, int offset, int limit) -> {
       return Main.jdbi.withHandle((handle) -> {
-        return handle.createQuery("select * from move offset " + offset + " rows fetch first " + limit + " rows only").map(Move.class).list().stream();
+        return handle.createQuery("select * from move " + buildSortOrder(sortOrder) + " offset " + offset + " rows fetch first " + limit + " rows only").map(Move.class).list().stream();
       });
     }, () -> {
       return Main.jdbi.withHandle((handle) -> {
@@ -161,5 +169,22 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
   public void refresh() {
     grid.getDataProvider().refreshAll();
     moves.getDataProvider().refreshAll();
+  }
+
+  String buildSortOrder(List<QuerySortOrder> sortOrder) {
+    StringBuilder builder = new StringBuilder();
+    if (!sortOrder.isEmpty()) {
+      builder.append("order by ");
+      AtomicInteger count = new AtomicInteger(0);
+      sortOrder.forEach(order -> {
+        if (count.get() > 0) {
+          builder.append(",");
+        }
+        count.incrementAndGet();
+        String direction = order.getDirection() == SortDirection.ASCENDING ? "ASC" : "DESC";
+        builder.append(order.getSorted() + " " + direction + " ");
+      });
+    }
+    return builder.toString();
   }
 }

@@ -85,14 +85,6 @@ public class FetcherUI extends UI implements Broadcaster.BroadcastListener {
     content.addComponent(layout);
 
     content.addComponentsAndExpand(new QueryGrid(this));
-    // Have a clickable button
-    // content.addComponent(new Button("Push Me!", click ->
-    // Notification.show("Pushed!")));
-
-    // ProgressBar bar = new ProgressBar(0.0f);
-    // content.addComponent(bar);
-    // Panel spacer = new Panel();
-    // content.addComponentsAndExpand(new VerticalLayout());
     Broadcaster.register(this);
     content.addComponent(activityTicker);
     update();

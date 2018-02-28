@@ -6,12 +6,16 @@ import org.fetcher.State;
 
 import java.io.Serializable;
 import java.sql.Date;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
 
 public class Query implements Serializable {
   private static final long serialVersionUID = 1L;
+  @JsonIgnore
+  static SimpleDateFormat f = new SimpleDateFormat("YYYYMMDD");
+
   public long queryId;
   public String patientName;
   public String patientId;
@@ -78,6 +82,10 @@ public class Query implements Serializable {
 
   public void setStudyDate(Date studyDate) {
     this.studyDate = studyDate;
+  }
+
+  public void setStudyDate(String sd) throws ParseException {
+    this.studyDate = new Date(f.parse(sd).getTime());
   }
 
   public String getStatus() {
