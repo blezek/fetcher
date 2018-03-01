@@ -9,6 +9,7 @@ import com.vaadin.ui.Label;
 import com.vaadin.ui.Notification;
 import com.vaadin.ui.UI;
 import com.vaadin.ui.VerticalLayout;
+import com.vaadin.ui.dnd.FileDropTarget;
 
 import org.fetcher.Fetcher;
 import org.fetcher.Main;
@@ -21,9 +22,9 @@ public class FetcherUI extends UI implements Broadcaster.BroadcastListener {
   private static final long serialVersionUID = 1L;
   static Logger logger = LoggerFactory.getLogger(FetcherUI.class);
 
-  private Label activityTicker = new Label("Status message");
-  Label queryStatus = new Label("Status Message");
-  Label moveStatus = new Label("Status Message");
+  private Label activityTicker = new Label("Status");
+  Label queryStatus = new Label("Status");
+  Label moveStatus = new Label("Status");
   Fetcher fetcher = null;
 
   @Override
@@ -35,6 +36,9 @@ public class FetcherUI extends UI implements Broadcaster.BroadcastListener {
 
     setContent(content);
 
+    // ALlow drag and drop anywhere
+    @SuppressWarnings("unused")
+    FileDropTarget<VerticalLayout> target = new FileDropTarget<>(content, new UploadCSV(this));
     // Display the greeting
     content.addComponent(new Label("Fetcher"));
 
@@ -63,6 +67,9 @@ public class FetcherUI extends UI implements Broadcaster.BroadcastListener {
         Notification.show("stopping find");
       }
     });
+    if (Main.fetcher.isQueryRunning()) {
+      startQuery.setCaption("Stop");
+    }
     layout.addComponent(new Label("Query"));
     layout.addComponent(startQuery);
     layout.addComponent(new Label(Main.fetcher.getConcurrentQueries() + " concurrent queries / " + Main.fetcher.queriesPerSecond + " queries per second limit"));
@@ -79,6 +86,10 @@ public class FetcherUI extends UI implements Broadcaster.BroadcastListener {
         Notification.show("stopping move");
       }
     });
+    if (Main.fetcher.isMoveRunning()) {
+      startMove.setCaption("Stop");
+    }
+
     layout.addComponent(new Label("Move:"));
     layout.addComponent(startMove);
     layout.addComponent(new Label(Main.fetcher.getConcurrentMoves() + " concurrent moves / " + Main.fetcher.imagesPerSecond + " images per second limit"));

@@ -3,7 +3,7 @@ create table query (
   patientName varchar(128),
   patientId varchar(512),
   accessionNumber varchar(512),
-  studyDate date,
+  studyDate varchar(128),
   queryRetrieveLevel varchar(512) default 'STUDY',
   status varchar(32),
   message varchar(512)

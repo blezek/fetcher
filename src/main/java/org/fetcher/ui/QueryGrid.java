@@ -14,6 +14,7 @@ import com.vaadin.ui.Upload;
 import com.vaadin.ui.VerticalLayout;
 
 import org.fetcher.Main;
+import org.fetcher.State;
 import org.fetcher.model.Move;
 import org.fetcher.model.Query;
 import org.slf4j.Logger;
@@ -60,7 +61,6 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
         ui.addWindow(new AddQueryDialog(c, () -> refresh()));
       });
     });
-    editQuery.setEnabled(false);
     Button queueAll = new Button("Queue All", click -> {
       if (Main.fetcher.isQueryRunning()) {
         Notification.show("Stop Query before adding items to the queue", Notification.Type.ERROR_MESSAGE);
@@ -106,6 +106,7 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
     });
     grid.removeColumn("queryId");
     grid.removeColumn("queryAttributes");
+    grid.removeColumn("studyDateAsDate");
     grid.setColumnOrder("patientId", "patientName", "accessionNumber", "studyDate", "status", "message");
     grid.setWidth("100%");
     grid.getColumns().forEach((c) -> {
@@ -138,6 +139,41 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
       refresh();
     });
 
+    // Queue created
+    Button queueCreatedMoves = new Button("Queue Created", click -> {
+      if (Main.fetcher.isMoveRunning()) {
+        Notification.show("Stop Move before adding items to the queue", Notification.Type.ERROR_MESSAGE);
+        return;
+      }
+      Main.jdbi.useHandle(handle -> {
+        handle.update("update move set status = ? where status = ?", State.QUEUED, State.CREATED);
+      });
+      refresh();
+    });
+    // Queue created
+    Button queueFailedMoves = new Button("Queue Failed", click -> {
+      if (Main.fetcher.isMoveRunning()) {
+        Notification.show("Stop Move before adding items to the queue", Notification.Type.ERROR_MESSAGE);
+        return;
+      }
+      Main.jdbi.useHandle(handle -> {
+        handle.update("update move set status = ? where status = ?", State.QUEUED, State.FAILED);
+      });
+      refresh();
+    });
+    // Delete completed created
+    Button deleteSucceeded = new Button("Delete Succeeded", click -> {
+      // if (Main.fetcher.isMoveRunning()) {
+      // Notification.show("Stop Move before adding items to the queue",
+      // Notification.Type.ERROR_MESSAGE);
+      // return;
+      // }
+      Main.jdbi.useHandle(handle -> {
+        handle.update("delete from move where status = ?", State.SUCCEEDED);
+      });
+      refresh();
+    });
+
     moves.setDataProvider((List<QuerySortOrder> sortOrder, int offset, int limit) -> {
       return Main.jdbi.withHandle((handle) -> {
         return handle.createQuery("select * from move " + buildSortOrder(sortOrder) + " offset " + offset + " rows fetch first " + limit + " rows only").map(Move.class).list().stream();
@@ -159,7 +195,7 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
     moves.setSelectionMode(SelectionMode.MULTI);
 
     layout.addComponentsAndExpand(grid);
-    layout.addComponent(new HorizontalLayout(queueAllMoves, queueMoves));
+    layout.addComponent(new HorizontalLayout(queueAllMoves, queueMoves, queueCreatedMoves, queueFailedMoves, deleteSucceeded));
     layout.addComponentsAndExpand(moves);
 
     setCompositionRoot(layout);

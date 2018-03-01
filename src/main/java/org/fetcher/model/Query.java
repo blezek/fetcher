@@ -10,6 +10,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class Query implements Serializable {
   private static final long serialVersionUID = 1L;
@@ -20,7 +21,7 @@ public class Query implements Serializable {
   public String patientName;
   public String patientId;
   public String accessionNumber;
-  public Date studyDate;
+  public String studyDate;
   private String queryRetrieveLevel = "STUDY";
   public String status = State.CREATED.toString();;
   public String message;
@@ -39,7 +40,7 @@ public class Query implements Serializable {
       map.put("AccessionNumber", accessionNumber);
     }
     if (studyDate != null) {
-      map.put("StudyDate", new SimpleDateFormat("yyyyMMdd").format(studyDate));
+      map.put("StudyDate", studyDate);
     }
     return map;
   }
@@ -76,17 +77,17 @@ public class Query implements Serializable {
     this.accessionNumber = accessionNumber;
   }
 
-  public Date getStudyDate() {
+  public String getStudyDate() {
     return studyDate;
   }
 
-  public void setStudyDate(Date studyDate) {
-    this.studyDate = studyDate;
-  }
-
   public void setStudyDate(String sd) throws ParseException {
-    this.studyDate = new Date(f.parse(sd).getTime());
+    this.studyDate = sd;
   }
+  //
+  // public void setStudyDate(Date studyDate) {
+  // this.studyDate = studyDate;
+  // }
 
   public String getStatus() {
     return status;
@@ -110,5 +111,19 @@ public class Query implements Serializable {
 
   public void setQueryRetrieveLevel(String queryRetrieveLevel) {
     this.queryRetrieveLevel = queryRetrieveLevel;
+  }
+
+  public void setStudyDateAsDate(Date studyDate) {
+    this.studyDate = f.format(studyDate);
+  }
+
+  @JsonIgnore
+  public Optional<java.util.Date> getStudyDateAsDate() {
+    Optional<java.util.Date> dt = Optional.empty();
+    try {
+      dt = Optional.of(f.parse(this.studyDate));
+    } catch (Exception e) {
+    }
+    return dt;
   }
 }

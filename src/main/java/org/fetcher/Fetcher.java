@@ -193,7 +193,9 @@ public class Fetcher implements Managed {
           logger.debug("Got data: " + data);
 
           imagesPerMinute.put(Instant.now().toEpochMilli(), 1L);
-          String imagesMoved = data.getInt(Tag.NumberOfCompletedSuboperations, 0) + " / " + data.getInt(Tag.NumberOfRemainingSuboperations, 0) + " images moved";
+          int completed = data.getInt(Tag.NumberOfCompletedSuboperations, 0);
+          int total = completed + data.getInt(Tag.NumberOfRemainingSuboperations, 0);
+          String imagesMoved = completed + " / " + total + " images moved";
           String msg = imagesMoved + " -- " + move.getPatientId() + " / " + move.getPatientName() + " / " + move.getAccessionNumber();
           if (Broadcaster.broadcast(msg)) {
             Main.jdbi.useHandle(handle -> {

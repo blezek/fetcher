@@ -21,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import java.sql.Date;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.Optional;
 
 @SuppressWarnings("serial")
 public class AddQueryDialog extends Window {
@@ -60,8 +61,9 @@ public class AddQueryDialog extends Window {
 
     DateField studyDate = new DateField("Study Date(YYYYMMDD)");
     studyDate.setDateFormat("YYYYMMDD");
-    if (query != null && query.getStudyDate() != null) {
-      LocalDateTime ldt = LocalDateTime.ofInstant(query.getStudyDate().toInstant(), ZoneId.systemDefault());
+    if (query != null && query.getStudyDateAsDate().isPresent()) {
+      Optional<java.util.Date> dt = query.getStudyDateAsDate();
+      LocalDateTime ldt = LocalDateTime.ofInstant(dt.get().toInstant(), ZoneId.systemDefault());
       studyDate.setDefaultValue(ldt.toLocalDate());
     } else {
       studyDate.setDefaultValue(null);
@@ -84,7 +86,7 @@ public class AddQueryDialog extends Window {
         logger.error("error getting bean values", e);
       }
       if (studyDate.getValue() != studyDate.getEmptyValue()) {
-        query.setStudyDate(Date.valueOf(studyDate.getValue()));
+        query.setStudyDateAsDate(Date.valueOf(studyDate.getValue()));
       }
       if (addQueued.getValue()) {
         query.setStatus(State.QUEUED.toString());
