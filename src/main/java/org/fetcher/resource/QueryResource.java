@@ -15,7 +15,6 @@ import javax.ws.rs.core.Response.Status;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import org.fetcher.Fetcher;
 import org.fetcher.Main;
 import org.fetcher.State;
 import org.fetcher.model.Move;
@@ -31,10 +30,8 @@ import java.util.List;
 @Consumes(MediaType.APPLICATION_JSON)
 public class QueryResource {
   static Logger logger = LoggerFactory.getLogger(QueryResource.class);
-  private Fetcher fetcher;
 
-  public QueryResource(Fetcher fetcher) {
-    this.fetcher = fetcher;
+  public QueryResource() {
   }
 
   @GET
