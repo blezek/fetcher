@@ -1,7 +1,9 @@
 plugins {
   id 'java'
   id 'eclipse'
+  id 'application'
   id 'com.github.ben-manes.versions' version '0.17.0'
+  id 'com.github.johnrengelman.shadow' version '2.0.2'
   // id 'com.devsoap.plugin.vaadin' version '1.2.0'
 }
 
@@ -21,6 +23,9 @@ project.ext {
   vaadinVersion = '8.3.1'
 }
 
+group = 'org.fetcher'
+mainClassName = 'org.fetcher.Main'
+version = '1.0.0-rc.1'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
@@ -64,11 +69,23 @@ dependencies {
 
   compile "com.opencsv:opencsv:4.0"
 
+  compile 'io.dropwizard.metrics:metrics-core:4.0.0'
+
+  // Expose prometheus
+  compile "io.prometheus:simpleclient_dropwizard:0.0.23"
+  compile "io.prometheus:simpleclient_servlet:0.0.23"
+  
   testCompile (
     'io.dropwizard:dropwizard-testing:' + dropwizardVersion,
   )
 }
 
+shadowJar {
+  baseName = 'fetcher'
+  classifier = null
+  version = null
+}
+
 task wrapper(type: Wrapper) {
-  gradleVersion = '4.4.1'
+  gradleVersion = '4.6'
 }
