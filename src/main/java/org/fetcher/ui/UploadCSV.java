@@ -1,8 +1,8 @@
 package org.fetcher.ui;
 
-import com.opencsv.bean.ColumnPositionMappingStrategy;
 import com.opencsv.bean.CsvToBean;
 import com.opencsv.bean.CsvToBeanBuilder;
+import com.opencsv.bean.HeaderColumnNameMappingStrategy;
 import com.vaadin.data.provider.ListDataProvider;
 import com.vaadin.server.StreamVariable;
 import com.vaadin.ui.Button;
@@ -40,45 +40,6 @@ public class UploadCSV implements Receiver, SucceededListener, FileDropHandler<V
 
   public UploadCSV(UI ui) {
     this.ui = ui;
-  }
-
-  @Override
-  public OutputStream receiveUpload(String filename, String mimeType) {
-    // Can we read it into a csv file
-    logger.info("Uploaded a file: " + filename + " of type " + mimeType);
-    buffer = new ByteArrayOutputStream();
-    return buffer;
-  }
-
-  @Override
-  public void uploadSucceeded(SucceededEvent event) {
-    // Load the CSV
-    ByteArrayInputStream out = new ByteArrayInputStream(buffer.toByteArray());
-    createUI(loadQueries(out));
-  }
-
-  private List<Query> loadQueries(InputStream out) {
-    List<Query> queries = new ArrayList<>();
-    try (InputStreamReader in = new InputStreamReader(out)) {
-      // CSVReader csvReader = new
-      // CSVReaderBuilder(in).withSkipLines(1).build();
-      ColumnPositionMappingStrategy<Query> strategy = new ColumnPositionMappingStrategy<>();
-      strategy.setType(Query.class);
-      String[] memberFieldsToBindTo = { "patientId", "patientName", "accessionNumber", "studyDate", "queryRetrieveLevel" };
-      strategy.setColumnMapping(memberFieldsToBindTo);
-
-      CsvToBean<Query> csvToBean = new CsvToBeanBuilder<Query>(in).withMappingStrategy(strategy).withSkipLines(1).withIgnoreLeadingWhiteSpace(true).build();
-      queries = csvToBean.parse();
-      queries.forEach(it -> {
-        if (it.getQueryRetrieveLevel() == null) {
-          it.setQueryRetrieveLevel("STUDY");
-        }
-      });
-    } catch (IOException e) {
-      logger.error("Error uploading files", e);
-    }
-    return queries;
-
   }
 
   private void createUI(List<Query> queries) {
@@ -123,6 +84,12 @@ public class UploadCSV implements Receiver, SucceededListener, FileDropHandler<V
           return fileBuffer;
         }
 
+        @Override
+        public boolean isInterrupted() {
+          // TODO Auto-generated method stub
+          return false;
+        }
+
         // Returns whether onProgress() is called during upload
         @Override
         public boolean listenProgress() {
@@ -135,10 +102,10 @@ public class UploadCSV implements Receiver, SucceededListener, FileDropHandler<V
           Broadcaster.broadcast("Progress " + event.getBytesReceived() / file.getFileSize() * 100 + "%");
         }
 
-        // Called when upload started
+        // Called when upload failed
         @Override
-        public void streamingStarted(StreamingStartEvent event) {
-          Notification.show("Upload started " + event.getFileName());
+        public void streamingFailed(StreamingErrorEvent event) {
+          Notification.show("CVS upload failed, fileName=" + event.getFileName(), Notification.Type.ERROR_MESSAGE);
         }
 
         // Called when upload finished
@@ -150,19 +117,55 @@ public class UploadCSV implements Receiver, SucceededListener, FileDropHandler<V
           });
         }
 
-        // Called when upload failed
+        // Called when upload started
         @Override
-        public void streamingFailed(StreamingErrorEvent event) {
-          Notification.show("CVS upload failed, fileName=" + event.getFileName(), Notification.Type.ERROR_MESSAGE);
-        }
-
-        @Override
-        public boolean isInterrupted() {
-          // TODO Auto-generated method stub
-          return false;
+        public void streamingStarted(StreamingStartEvent event) {
+          Notification.show("Upload started " + event.getFileName());
         }
       });
     });
+  }
+
+  private List<Query> loadQueries(InputStream out) {
+    List<Query> queries = new ArrayList<>();
+    try (InputStreamReader in = new InputStreamReader(out)) {
+      // CSVReader csvReader = new
+      // CSVReaderBuilder(in).withSkipLines(1).build();
+      // ColumnPositionMappingStrategy<Query> strategy = new
+      // ColumnPositionMappingStrategy<>();
+      HeaderColumnNameMappingStrategy<Query> strategy = new HeaderColumnNameMappingStrategy<>();
+      strategy.setType(Query.class);
+      String[] memberFieldsToBindTo = { "patientId", "patientName", "accessionNumber", "studyDate",
+          "queryRetrieveLevel" };
+      // strategy.setColumnMapping(memberFieldsToBindTo);
+      CsvToBean<Query> csvToBean = new CsvToBeanBuilder<Query>(in).withMappingStrategy(strategy).withSkipLines(0)
+          .withIgnoreLeadingWhiteSpace(true).build();
+      queries = csvToBean.parse();
+      queries.forEach(it -> {
+        if (it.getQueryRetrieveLevel() == null) {
+          it.setQueryRetrieveLevel("STUDY");
+        }
+      });
+    } catch (IOException e) {
+      logger.error("Error uploading files", e);
+    }
+    return queries;
+
+  }
+
+  @Override
+  public OutputStream receiveUpload(String filename, String mimeType) {
+    // Can we read it into a csv file
+    logger.info("Uploaded a file: " + filename + " of type " + mimeType);
+    buffer = new ByteArrayOutputStream();
+    return buffer;
+  }
+
+  @Override
+  public void uploadSucceeded(SucceededEvent event) {
+    // Load the CSV
+    ByteArrayInputStream out = new ByteArrayInputStream(buffer.toByteArray());
+    createUI(loadQueries(out));
   }
 
 }

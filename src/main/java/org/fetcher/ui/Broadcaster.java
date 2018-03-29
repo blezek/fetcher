@@ -9,23 +9,15 @@ import java.util.concurrent.Executors;
 
 @SuppressWarnings("serial")
 public class Broadcaster implements Serializable {
-  static ExecutorService executorService = Executors.newSingleThreadExecutor();
-  // Limit broadcasts to 1 every 2 seconds
-  static RateLimiter broadcastLimit = RateLimiter.create(0.5);
-
   public interface BroadcastListener {
     void receiveBroadcast(String message);
   }
+  static ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+  // Limit broadcasts to 1 every 2 seconds
+  static RateLimiter broadcastLimit = RateLimiter.create(0.5);
 
   private static ConcurrentHashMap<BroadcastListener, Integer> listeners = new ConcurrentHashMap<>();
-
-  public static void register(BroadcastListener listener) {
-    listeners.put(listener, 1);
-  }
-
-  public static void unregister(BroadcastListener listener) {
-    listeners.remove(listener);
-  }
 
   /**
    * Broadcast at the particular rate limit.
@@ -42,5 +34,13 @@ public class Broadcaster implements Serializable {
       return true;
     }
     return false;
+  }
+
+  public static void register(BroadcastListener listener) {
+    listeners.put(listener, 1);
+  }
+
+  public static void unregister(BroadcastListener listener) {
+    listeners.remove(listener);
   }
 }

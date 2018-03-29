@@ -96,9 +96,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class FindSCU {
 
   public static enum InformationModel {
-    PatientRoot(UID.PatientRootQueryRetrieveInformationModelFIND, "STUDY"), StudyRoot(UID.StudyRootQueryRetrieveInformationModelFIND, "STUDY"), PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelFINDRetired, "STUDY"), MWL(
-        UID.ModalityWorklistInformationModelFIND, null), UPSPull(UID.UnifiedProcedureStepPullSOPClass,
-            null), UPSWatch(UID.UnifiedProcedureStepWatchSOPClass, null), HangingProtocol(UID.HangingProtocolInformationModelFIND, null), ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelFIND, null);
+    PatientRoot(UID.PatientRootQueryRetrieveInformationModelFIND, "STUDY"), StudyRoot(
+        UID.StudyRootQueryRetrieveInformationModelFIND,
+        "STUDY"), PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelFINDRetired, "STUDY"), MWL(
+            UID.ModalityWorklistInformationModelFIND,
+            null), UPSPull(UID.UnifiedProcedureStepPullSOPClass, null), UPSWatch(UID.UnifiedProcedureStepWatchSOPClass,
+                null), HangingProtocol(UID.HangingProtocolInformationModelFIND,
+                    null), ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelFIND, null);
 
     final String cuid;
     final String level;
@@ -116,184 +120,140 @@ public class FindSCU {
     }
   }
 
-  private static ResourceBundle rb = ResourceBundle.getBundle("org.dcm4che3.tool.findscu.messages");
-  private static SAXTransformerFactory saxtf;
-
-  private final Device device = new Device("findscu");
-  private final ApplicationEntity ae = new ApplicationEntity("FINDSCU");
-  private final Connection connection = new Connection();
-  private final Connection remote = new Connection();
-  private final AAssociateRQ rq = new AAssociateRQ();
-  private int priority;
-  private int cancelAfter;
-  private InformationModel model;
-
-  private File outDir;
-  private DecimalFormat outFileFormat;
-  private int[] inFilter;
-  private Attributes keys = new Attributes();
-
-  private boolean catOut = false;
-  private boolean xml = false;
-  private boolean xmlIndent = false;
-  private boolean xmlIncludeKeyword = true;
-  private boolean xmlIncludeNamespaceDeclaration = false;
-  private File xsltFile;
-  private Templates xsltTpls;
-  private OutputStream out;
-
-  private Association as;
-  private AtomicInteger totNumMatches = new AtomicInteger();
-
-  public FindSCU() throws IOException {
-    device.addConnection(connection);
-    device.addApplicationEntity(ae);
-    ae.addConnection(connection);
-  }
-
-  public final void setPriority(int priority) {
-    this.priority = priority;
-  }
-
-  public final void setInformationModel(InformationModel model, String[] tss, EnumSet<QueryOption> queryOptions) {
-    this.model = model;
-    rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
-    if (!queryOptions.isEmpty()) {
-      model.adjustQueryOptions(queryOptions);
-      rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, QueryOption.toExtendedNegotiationInformation(queryOptions)));
+  private static class MergeNested implements Attributes.Visitor {
+    private static boolean isNotEmptySequence(Object val) {
+      return val instanceof Sequence && !((Sequence) val).isEmpty();
     }
-    if (model.level != null)
-      addLevel(model.level);
-  }
 
-  public void addLevel(String s) {
-    keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
-  }
+    private final Attributes keys;
 
-  public final void setCancelAfter(int cancelAfter) {
-    this.cancelAfter = cancelAfter;
-  }
+    MergeNested(Attributes keys) {
+      this.keys = keys;
+    }
 
-  public final void setOutputDirectory(File outDir) {
-    outDir.mkdirs();
-    this.outDir = outDir;
+    @Override
+    public boolean visit(Attributes attrs, int tag, VR vr, Object val) {
+      if (isNotEmptySequence(val)) {
+        Object o = keys.remove(tag);
+        if (isNotEmptySequence(o))
+          ((Sequence) val).get(0).addAll(((Sequence) o).get(0));
+      }
+      return true;
+    }
   }
+  private static ResourceBundle rb = ResourceBundle.getBundle("org.dcm4che3.tool.findscu.messages");
 
-  public final void setOutputFileFormat(String outFileFormat) {
-    this.outFileFormat = new DecimalFormat(outFileFormat);
+  private static SAXTransformerFactory saxtf;
+  @SuppressWarnings("static-access")
+  private static void addCancelOption(Options opts) {
+    OptionBuilder.withLongOpt("cancel");
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("num-matches");
+    OptionBuilder
+        .withDescription(rb.getString("cancel"));
+    opts.addOption(OptionBuilder.create());
   }
-
-  public final void setXSLT(File xsltFile) {
-    this.xsltFile = xsltFile;
+  @SuppressWarnings("static-access")
+  private static void addKeyOptions(Options opts) {
+    OptionBuilder.hasArgs();
+    OptionBuilder.withArgName("[seq/]attr=value");
+    OptionBuilder.withValueSeparator('=');
+    OptionBuilder
+        .withDescription(rb.getString("match"));
+    opts.addOption(OptionBuilder.create("m"));
+    OptionBuilder.hasArgs();
+    OptionBuilder.withArgName("[seq/]attr");
+    OptionBuilder.withDescription(rb.getString("return"));
+    opts.addOption(
+        OptionBuilder.create("r"));
+    OptionBuilder.hasArgs();
+    OptionBuilder.withArgName("attr");
+    OptionBuilder.withDescription(rb.getString("in-attr"));
+    opts.addOption(OptionBuilder.create("i"));
   }
-
-  public final void setXML(boolean xml) {
-    this.xml = xml;
+  @SuppressWarnings("static-access")
+  private static void addOutputOptions(Options opts) {
+    OptionBuilder.withLongOpt("out-dir");
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("directory");
+    OptionBuilder
+        .withDescription(rb.getString("out-dir"));
+    opts.addOption(OptionBuilder.create());
+    OptionBuilder.withLongOpt("out-file");
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("name");
+    OptionBuilder
+        .withDescription(rb.getString("out-file"));
+    opts.addOption(OptionBuilder.create());
+    opts.addOption("X", "xml", false, rb.getString("xml"));
+    OptionBuilder.withLongOpt("xsl");
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("xsl-file");
+    OptionBuilder
+        .withDescription(rb.getString("xsl"));
+    opts.addOption(OptionBuilder.create("x"));
+    opts.addOption("I", "indent", false, rb.getString("indent"));
+    opts.addOption("K", "no-keyword", false, rb.getString("no-keyword"));
+    opts.addOption(null, "xmlns", false, rb.getString("xmlns"));
+    opts.addOption(null, "out-cat", false, rb.getString("out-cat"));
   }
-
-  public final void setXMLIndent(boolean indent) {
-    this.xmlIndent = indent;
+  @SuppressWarnings("static-access")
+  private static void addQueryLevelOption(Options opts) {
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("PATIENT|STUDY|SERIES|IMAGE");
+    OptionBuilder
+        .withDescription(rb.getString("level"));
+    opts.addOption(OptionBuilder.create("L"));
   }
-
-  public final void setXMLIncludeKeyword(boolean includeKeyword) {
-    this.xmlIncludeKeyword = includeKeyword;
-  }
-
-  public final void setXMLIncludeNamespaceDeclaration(boolean includeNamespaceDeclaration) {
-    this.xmlIncludeNamespaceDeclaration = includeNamespaceDeclaration;
-  }
-
-  public final void setConcatenateOutputFiles(boolean catOut) {
-    this.catOut = catOut;
-  }
-
-  public final void setInputFilter(int[] inFilter) {
-    this.inFilter = inFilter;
-  }
-
-  static CommandLine parseComandLine(String[] args) throws ParseException {
-    Options opts = new Options();
-    addServiceClassOptions(opts);
-    addKeyOptions(opts);
-    addOutputOptions(opts);
-    addQueryLevelOption(opts);
-    addCancelOption(opts);
-    CLIUtils.addConnectOption(opts);
-    CLIUtils.addBindOption(opts, "FINDSCU");
-    CLIUtils.addAEOptions(opts);
-    CLIUtils.addResponseTimeoutOption(opts);
-    CLIUtils.addPriorityOption(opts);
-    CLIUtils.addCommonOptions(opts);
-    return CLIUtils.parseComandLine(args, opts, rb, FindSCU.class);
-  }
-
   @SuppressWarnings("static-access")
   private static void addServiceClassOptions(Options opts) {
-    opts.addOption(OptionBuilder.hasArg().withArgName("name").withDescription(rb.getString("model")).create("M"));
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("name");
+    OptionBuilder.withDescription(rb.getString("model"));
+    opts.addOption(OptionBuilder.create("M"));
     CLIUtils.addTransferSyntaxOptions(opts);
     opts.addOption(null, "relational", false, rb.getString("relational"));
     opts.addOption(null, "datetime", false, rb.getString("datetime"));
     opts.addOption(null, "fuzzy", false, rb.getString("fuzzy"));
     opts.addOption(null, "timezone", false, rb.getString("timezone"));
   }
-
-  @SuppressWarnings("static-access")
-  private static void addQueryLevelOption(Options opts) {
-    opts.addOption(OptionBuilder.hasArg().withArgName("PATIENT|STUDY|SERIES|IMAGE").withDescription(rb.getString("level")).create("L"));
+  static void configureCancel(FindSCU main, CommandLine cl) {
+    if (cl.hasOption("cancel"))
+      main.setCancelAfter(Integer.parseInt(cl.getOptionValue("cancel")));
+  }
+  static void configureKeys(FindSCU main, CommandLine cl) {
+    CLIUtils.addEmptyAttributes(main.keys, cl.getOptionValues("r"));
+    CLIUtils.addAttributes(main.keys, cl.getOptionValues("m"));
+    if (cl.hasOption("L"))
+      main.addLevel(cl.getOptionValue("L"));
+    if (cl.hasOption("i"))
+      main.setInputFilter(CLIUtils.toTags(cl.getOptionValues("i")));
   }
 
-  @SuppressWarnings("static-access")
-  private static void addCancelOption(Options opts) {
-    opts.addOption(OptionBuilder.withLongOpt("cancel").hasArg().withArgName("num-matches").withDescription(rb.getString("cancel")).create());
+  static void configureOutput(FindSCU main, CommandLine cl) {
+    if (cl.hasOption("out-dir"))
+      main.setOutputDirectory(new File(cl.getOptionValue("out-dir")));
+    main.setOutputFileFormat(cl.getOptionValue("out-file", "000'.dcm'"));
+    main.setConcatenateOutputFiles(cl.hasOption("out-cat"));
+    main.setXML(cl.hasOption("X"));
+    if (cl.hasOption("x")) {
+      main.setXML(true);
+      main.setXSLT(new File(cl.getOptionValue("x")));
+    }
+    main.setXMLIndent(cl.hasOption("I"));
+    main.setXMLIncludeKeyword(!cl.hasOption("K"));
+    main.setXMLIncludeNamespaceDeclaration(cl.hasOption("xmlns"));
   }
-
-  @SuppressWarnings("static-access")
-  private static void addKeyOptions(Options opts) {
-    opts.addOption(OptionBuilder.hasArgs().withArgName("[seq/]attr=value").withValueSeparator('=').withDescription(rb.getString("match")).create("m"));
-    opts.addOption(OptionBuilder.hasArgs().withArgName("[seq/]attr").withDescription(rb.getString("return")).create("r"));
-    opts.addOption(OptionBuilder.hasArgs().withArgName("attr").withDescription(rb.getString("in-attr")).create("i"));
+  static void configureServiceClass(FindSCU main, CommandLine cl) throws ParseException {
+    main.setInformationModel(informationModelOf(cl), CLIUtils.transferSyntaxesOf(cl), queryOptionsOf(main, cl));
   }
-
-  @SuppressWarnings("static-access")
-  private static void addOutputOptions(Options opts) {
-    opts.addOption(OptionBuilder.withLongOpt("out-dir").hasArg().withArgName("directory").withDescription(rb.getString("out-dir")).create());
-    opts.addOption(OptionBuilder.withLongOpt("out-file").hasArg().withArgName("name").withDescription(rb.getString("out-file")).create());
-    opts.addOption("X", "xml", false, rb.getString("xml"));
-    opts.addOption(OptionBuilder.withLongOpt("xsl").hasArg().withArgName("xsl-file").withDescription(rb.getString("xsl")).create("x"));
-    opts.addOption("I", "indent", false, rb.getString("indent"));
-    opts.addOption("K", "no-keyword", false, rb.getString("no-keyword"));
-    opts.addOption(null, "xmlns", false, rb.getString("xmlns"));
-    opts.addOption(null, "out-cat", false, rb.getString("out-cat"));
+  private static InformationModel informationModelOf(CommandLine cl) throws ParseException {
+    try {
+      return cl.hasOption("M") ? InformationModel.valueOf(cl.getOptionValue("M")) : InformationModel.StudyRoot;
+    } catch (IllegalArgumentException e) {
+      throw new ParseException(MessageFormat.format(rb.getString("invalid-model-name"), cl.getOptionValue("M")));
+    }
   }
-
-  public ApplicationEntity getApplicationEntity() {
-    return ae;
-  }
-
-  public Connection getRemoteConnection() {
-    return remote;
-  }
-
-  public AAssociateRQ getAAssociateRQ() {
-    return rq;
-  }
-
-  public Association getAssociation() {
-    return as;
-  }
-
-  public Device getDevice() {
-    return device;
-  }
-
-  public Attributes getKeys() {
-    return keys;
-  }
-
-  public Connection getConnection() {
-    return connection;
-  }
-
   @SuppressWarnings("unchecked")
   public static void main(String[] args) {
     try {
@@ -337,6 +297,29 @@ public class FindSCU {
     }
   }
 
+  static void mergeKeys(Attributes attrs, Attributes keys) {
+    try {
+      attrs.accept(new MergeNested(keys), false);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+    attrs.addAll(keys);
+  }
+  static CommandLine parseComandLine(String[] args) throws ParseException {
+    Options opts = new Options();
+    addServiceClassOptions(opts);
+    addKeyOptions(opts);
+    addOutputOptions(opts);
+    addQueryLevelOption(opts);
+    addCancelOption(opts);
+    CLIUtils.addConnectOption(opts);
+    CLIUtils.addBindOption(opts, "FINDSCU");
+    CLIUtils.addAEOptions(opts);
+    CLIUtils.addResponseTimeoutOption(opts);
+    CLIUtils.addPriorityOption(opts);
+    CLIUtils.addCommonOptions(opts);
+    return CLIUtils.parseComandLine(args, opts, rb, FindSCU.class);
+  }
   private static EnumSet<QueryOption> queryOptionsOf(FindSCU main, CommandLine cl) {
     EnumSet<QueryOption> queryOptions = EnumSet.noneOf(QueryOption.class);
     if (cl.hasOption("relational"))
@@ -349,50 +332,53 @@ public class FindSCU {
       queryOptions.add(QueryOption.TIMEZONE);
     return queryOptions;
   }
+  private final Device device = new Device("findscu");
+  private final ApplicationEntity ae = new ApplicationEntity("FINDSCU");
+  private final Connection connection = new Connection();
+  private final Connection remote = new Connection();
+  private final AAssociateRQ rq = new AAssociateRQ();
 
-  static void configureOutput(FindSCU main, CommandLine cl) {
-    if (cl.hasOption("out-dir"))
-      main.setOutputDirectory(new File(cl.getOptionValue("out-dir")));
-    main.setOutputFileFormat(cl.getOptionValue("out-file", "000'.dcm'"));
-    main.setConcatenateOutputFiles(cl.hasOption("out-cat"));
-    main.setXML(cl.hasOption("X"));
-    if (cl.hasOption("x")) {
-      main.setXML(true);
-      main.setXSLT(new File(cl.getOptionValue("x")));
-    }
-    main.setXMLIndent(cl.hasOption("I"));
-    main.setXMLIncludeKeyword(!cl.hasOption("K"));
-    main.setXMLIncludeNamespaceDeclaration(cl.hasOption("xmlns"));
+  private int priority;
+  private int cancelAfter;
+
+  private InformationModel model;
+
+  private File outDir;
+
+  private DecimalFormat outFileFormat;
+
+  private int[] inFilter;
+
+  private Attributes keys = new Attributes();
+
+  private boolean catOut = false;
+
+  private boolean xml = false;
+
+  private boolean xmlIndent = false;
+
+  private boolean xmlIncludeKeyword = true;
+
+  private boolean xmlIncludeNamespaceDeclaration = false;
+
+  private File xsltFile;
+
+  private Templates xsltTpls;
+
+  private OutputStream out;
+
+  private Association as;
+
+  private AtomicInteger totNumMatches = new AtomicInteger();
+
+  public FindSCU() throws IOException {
+    device.addConnection(connection);
+    device.addApplicationEntity(ae);
+    ae.addConnection(connection);
   }
 
-  static void configureCancel(FindSCU main, CommandLine cl) {
-    if (cl.hasOption("cancel"))
-      main.setCancelAfter(Integer.parseInt(cl.getOptionValue("cancel")));
-  }
-
-  static void configureKeys(FindSCU main, CommandLine cl) {
-    CLIUtils.addEmptyAttributes(main.keys, cl.getOptionValues("r"));
-    CLIUtils.addAttributes(main.keys, cl.getOptionValues("m"));
-    if (cl.hasOption("L"))
-      main.addLevel(cl.getOptionValue("L"));
-    if (cl.hasOption("i"))
-      main.setInputFilter(CLIUtils.toTags(cl.getOptionValues("i")));
-  }
-
-  static void configureServiceClass(FindSCU main, CommandLine cl) throws ParseException {
-    main.setInformationModel(informationModelOf(cl), CLIUtils.transferSyntaxesOf(cl), queryOptionsOf(main, cl));
-  }
-
-  private static InformationModel informationModelOf(CommandLine cl) throws ParseException {
-    try {
-      return cl.hasOption("M") ? InformationModel.valueOf(cl.getOptionValue("M")) : InformationModel.StudyRoot;
-    } catch (IllegalArgumentException e) {
-      throw new ParseException(MessageFormat.format(rb.getString("invalid-model-name"), cl.getOptionValue("M")));
-    }
-  }
-
-  public void open() throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
-    as = ae.connect(connection, remote, rq);
+  public void addLevel(String s) {
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
   }
 
   public void close() throws IOException, InterruptedException {
@@ -404,53 +390,88 @@ public class FindSCU {
     out = null;
   }
 
-  public void query(File f) throws Exception {
-    Attributes attrs;
-    String filePath = f.getPath();
-    String fileExt = filePath.substring(filePath.lastIndexOf(".") + 1).toLowerCase();
-    DicomInputStream dis = null;
-    try {
-      attrs = fileExt.equals("xml") ? SAXReader.parse(filePath) : new DicomInputStream(f).readDataset(-1, -1);
-      if (inFilter != null) {
-        attrs = new Attributes(inFilter.length + 1);
-        attrs.addSelected(attrs, inFilter);
-      }
-    } finally {
-      SafeClose.close(dis);
-    }
-    mergeKeys(attrs, keys);
-    query(attrs);
-  }
-
-  private static class MergeNested implements Attributes.Visitor {
-    private final Attributes keys;
-
-    MergeNested(Attributes keys) {
-      this.keys = keys;
-    }
-
-    @Override
-    public boolean visit(Attributes attrs, int tag, VR vr, Object val) {
-      if (isNotEmptySequence(val)) {
-        Object o = keys.remove(tag);
-        if (isNotEmptySequence(o))
-          ((Sequence) val).get(0).addAll(((Sequence) o).get(0));
-      }
-      return true;
-    }
-
-    private static boolean isNotEmptySequence(Object val) {
-      return val instanceof Sequence && !((Sequence) val).isEmpty();
+  private String fname(int i) {
+    synchronized (outFileFormat) {
+      return outFileFormat.format(i);
     }
   }
 
-  static void mergeKeys(Attributes attrs, Attributes keys) {
+  public AAssociateRQ getAAssociateRQ() {
+    return rq;
+  }
+
+  public ApplicationEntity getApplicationEntity() {
+    return ae;
+  }
+
+  public Association getAssociation() {
+    return as;
+  }
+
+  public Connection getConnection() {
+    return connection;
+  }
+
+  public Device getDevice() {
+    return device;
+  }
+
+  public Attributes getKeys() {
+    return keys;
+  }
+
+  public Connection getRemoteConnection() {
+    return remote;
+  }
+
+  private TransformerHandler getTransformerHandler() throws Exception {
+    SAXTransformerFactory tf = saxtf;
+    if (tf == null)
+      saxtf = tf = (SAXTransformerFactory) TransformerFactory.newInstance();
+    if (xsltFile == null)
+      return tf.newTransformerHandler();
+
+    Templates tpls = xsltTpls;
+    if (tpls == null)
+      ;
+    xsltTpls = tpls = tf.newTemplates(new StreamSource(xsltFile));
+
+    return tf.newTransformerHandler(tpls);
+  }
+
+  private void onResult(Attributes data) {
+    int numMatches = totNumMatches.incrementAndGet();
+    if (outDir == null)
+      return;
+
     try {
-      attrs.accept(new MergeNested(keys), false);
+      if (out == null) {
+        File f = new File(outDir, fname(numMatches));
+        out = new BufferedOutputStream(new FileOutputStream(f));
+      }
+      if (xml) {
+        writeAsXML(data, out);
+      } else {
+        try (DicomOutputStream dos = new DicomOutputStream(out, UID.ImplicitVRLittleEndian)) {
+          dos.writeDataset(null, data);
+        }
+      }
+      out.flush();
     } catch (Exception e) {
-      throw new RuntimeException(e);
+      e.printStackTrace();
+      SafeClose.close(out);
+      out = null;
+    } finally {
+      if (!catOut) {
+        SafeClose.close(out);
+        out = null;
+      }
     }
-    attrs.addAll(keys);
+  }
+
+  public void open()
+      throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
+    as = ae.connect(connection, remote, rq);
   }
 
   public void query() throws IOException, InterruptedException {
@@ -484,48 +505,87 @@ public class FindSCU {
     query(keys, rspHandler);
   }
 
-  public void query(DimseRSPHandler rspHandler) throws IOException, InterruptedException {
-    query(keys, rspHandler);
-  }
-
   void query(Attributes keys, DimseRSPHandler rspHandler) throws IOException, InterruptedException {
     as.cfind(model.cuid, priority, keys, null, rspHandler);
   }
 
-  private void onResult(Attributes data) {
-    int numMatches = totNumMatches.incrementAndGet();
-    if (outDir == null)
-      return;
-
-    try {
-      if (out == null) {
-        File f = new File(outDir, fname(numMatches));
-        out = new BufferedOutputStream(new FileOutputStream(f));
-      }
-      if (xml) {
-        writeAsXML(data, out);
-      } else {
-        try (DicomOutputStream dos = new DicomOutputStream(out, UID.ImplicitVRLittleEndian)) {
-          dos.writeDataset(null, data);
-        }
-      }
-      out.flush();
-    } catch (Exception e) {
-      e.printStackTrace();
-      SafeClose.close(out);
-      out = null;
-    } finally {
-      if (!catOut) {
-        SafeClose.close(out);
-        out = null;
-      }
-    }
+  public void query(DimseRSPHandler rspHandler) throws IOException, InterruptedException {
+    query(keys, rspHandler);
   }
 
-  private String fname(int i) {
-    synchronized (outFileFormat) {
-      return outFileFormat.format(i);
+  public void query(File f) throws Exception {
+    Attributes attrs;
+    String filePath = f.getPath();
+    String fileExt = filePath.substring(filePath.lastIndexOf(".") + 1).toLowerCase();
+    DicomInputStream dis = null;
+    try {
+      attrs = fileExt.equals("xml") ? SAXReader.parse(filePath) : new DicomInputStream(f).readDataset(-1, -1);
+      if (inFilter != null) {
+        attrs = new Attributes(inFilter.length + 1);
+        attrs.addSelected(attrs, inFilter);
+      }
+    } finally {
+      SafeClose.close(dis);
     }
+    mergeKeys(attrs, keys);
+    query(attrs);
+  }
+
+  public final void setCancelAfter(int cancelAfter) {
+    this.cancelAfter = cancelAfter;
+  }
+
+  public final void setConcatenateOutputFiles(boolean catOut) {
+    this.catOut = catOut;
+  }
+
+  public final void setInformationModel(InformationModel model, String[] tss, EnumSet<QueryOption> queryOptions) {
+    this.model = model;
+    rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
+    if (!queryOptions.isEmpty()) {
+      model.adjustQueryOptions(queryOptions);
+      rq.addExtendedNegotiation(
+          new ExtendedNegotiation(model.cuid, QueryOption.toExtendedNegotiationInformation(queryOptions)));
+    }
+    if (model.level != null)
+      addLevel(model.level);
+  }
+
+  public final void setInputFilter(int[] inFilter) {
+    this.inFilter = inFilter;
+  }
+
+  public final void setOutputDirectory(File outDir) {
+    outDir.mkdirs();
+    this.outDir = outDir;
+  }
+
+  public final void setOutputFileFormat(String outFileFormat) {
+    this.outFileFormat = new DecimalFormat(outFileFormat);
+  }
+
+  public final void setPriority(int priority) {
+    this.priority = priority;
+  }
+
+  public final void setXML(boolean xml) {
+    this.xml = xml;
+  }
+
+  public final void setXMLIncludeKeyword(boolean includeKeyword) {
+    this.xmlIncludeKeyword = includeKeyword;
+  }
+
+  public final void setXMLIncludeNamespaceDeclaration(boolean includeNamespaceDeclaration) {
+    this.xmlIncludeNamespaceDeclaration = includeNamespaceDeclaration;
+  }
+
+  public final void setXMLIndent(boolean indent) {
+    this.xmlIndent = indent;
+  }
+
+  public final void setXSLT(File xsltFile) {
+    this.xsltFile = xsltFile;
   }
 
   private void writeAsXML(Attributes attrs, OutputStream out) throws Exception {
@@ -536,21 +596,6 @@ public class FindSCU {
     saxWriter.setIncludeKeyword(xmlIncludeKeyword);
     saxWriter.setIncludeNamespaceDeclaration(xmlIncludeNamespaceDeclaration);
     saxWriter.write(attrs);
-  }
-
-  private TransformerHandler getTransformerHandler() throws Exception {
-    SAXTransformerFactory tf = saxtf;
-    if (tf == null)
-      saxtf = tf = (SAXTransformerFactory) TransformerFactory.newInstance();
-    if (xsltFile == null)
-      return tf.newTransformerHandler();
-
-    Templates tpls = xsltTpls;
-    if (tpls == null)
-      ;
-    xsltTpls = tpls = tf.newTemplates(new StreamSource(xsltFile));
-
-    return tf.newTransformerHandler(tpls);
   }
 
 }

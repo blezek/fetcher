@@ -99,7 +99,8 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
 
         List<QuerySortOrder> sortOrder, int offset, int limit) -> {
       return Main.jdbi.withHandle((handle) -> {
-        return handle.createQuery("select * from query " + buildSortOrder(sortOrder) + " offset " + offset + " rows fetch first " + limit + " rows only").map(Query.class).list().stream();
+        return handle.createQuery("select * from query " + buildSortOrder(sortOrder) + " offset " + offset
+            + " rows fetch first " + limit + " rows only").map(Query.class).list().stream();
       });
     }, () -> {
       return Main.queryDAO.queryCount();
@@ -112,7 +113,6 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
     grid.getColumns().forEach((c) -> {
       logger.info("Query columns: " + c.getCaption() + " -- " + c.getId());
     });
-    grid.setSelectionMode(SelectionMode.MULTI);
     grid.addSelectionListener(c -> {
       editQuery.setEnabled(c.getAllSelectedItems().size() == 1);
     });
@@ -176,7 +176,8 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
 
     moves.setDataProvider((List<QuerySortOrder> sortOrder, int offset, int limit) -> {
       return Main.jdbi.withHandle((handle) -> {
-        return handle.createQuery("select * from move " + buildSortOrder(sortOrder) + " offset " + offset + " rows fetch first " + limit + " rows only").map(Move.class).list().stream();
+        return handle.createQuery("select * from move " + buildSortOrder(sortOrder) + " offset " + offset
+            + " rows fetch first " + limit + " rows only").map(Move.class).list().stream();
       });
     }, () -> {
       return Main.jdbi.withHandle((handle) -> {
@@ -195,16 +196,11 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
     moves.setSelectionMode(SelectionMode.MULTI);
 
     layout.addComponentsAndExpand(grid);
-    layout.addComponent(new HorizontalLayout(queueAllMoves, queueMoves, queueCreatedMoves, queueFailedMoves, deleteSucceeded));
+    layout.addComponent(
+        new HorizontalLayout(queueAllMoves, queueMoves, queueCreatedMoves, queueFailedMoves, deleteSucceeded));
     layout.addComponentsAndExpand(moves);
 
     setCompositionRoot(layout);
-  }
-
-  @Override
-  public void refresh() {
-    grid.getDataProvider().refreshAll();
-    moves.getDataProvider().refreshAll();
   }
 
   String buildSortOrder(List<QuerySortOrder> sortOrder) {
@@ -222,5 +218,11 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
       });
     }
     return builder.toString();
+  }
+
+  @Override
+  public void refresh() {
+    grid.getDataProvider().refreshAll();
+    moves.getDataProvider().refreshAll();
   }
 }

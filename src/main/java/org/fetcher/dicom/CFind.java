@@ -42,11 +42,10 @@ public class CFind {
      * conn.setSendPDULength(Connection.DEF_MAX_PDU_LENGTH);
      * conn.setMaxOpsInvoked(0); conn.setMaxOpsPerformed(0);
      * 
-     * conn.setPackPDV(true); conn.setConnectTimeout(0);
-     * conn.setRequestTimeout(0); conn.setAcceptTimeout(0);
-     * conn.setReleaseTimeout(0); conn.setResponseTimeout(0);
-     * conn.setRetrieveTimeout(0); conn.setIdleTimeout(0);
-     * conn.setSocketCloseDelay(Connection.DEF_SOCKETDELAY);
+     * conn.setPackPDV(true); conn.setConnectTimeout(0); conn.setRequestTimeout(0);
+     * conn.setAcceptTimeout(0); conn.setReleaseTimeout(0);
+     * conn.setResponseTimeout(0); conn.setRetrieveTimeout(0);
+     * conn.setIdleTimeout(0); conn.setSocketCloseDelay(Connection.DEF_SOCKETDELAY);
      * conn.setSendBufferSize(0); conn.setReceiveBufferSize(0);
      * conn.setTcpNoDelay(false);
      * 
@@ -67,7 +66,7 @@ public class CFind {
 
     // -b,--bind <aet[@ip][:port]> specify AE Title, local address
     args.add("--bind");
-    args.add(fetcher.getCalledAET());
+    args.add(fetcher.getCallingAET());
 
     // -L <PATIENT|STUDY|SERIES|IMAGE> specifies retrieve level. Use
     args.add("-L");

@@ -17,52 +17,12 @@ public class Move {
   private String status;
   private String message;
 
-  public Long getMoveId() {
-    return moveId;
-  }
-
-  public void setMoveId(Long moveId) {
-    this.moveId = moveId;
-  }
-
-  public Long getQueryId() {
-    return queryId;
-  }
-
-  public void setQueryId(Long queryId) {
-    this.queryId = queryId;
-  }
-
-  public String getStudyInstanceUID() {
-    return studyInstanceUID;
-  }
-
-  public void setStudyInstanceUID(String studyInstanceUID) {
-    this.studyInstanceUID = studyInstanceUID;
-  }
-
-  public String getSeriesInstanceUID() {
-    return seriesInstanceUID;
-  }
-
-  public void setSeriesInstanceUID(String seriesInstanceUID) {
-    this.seriesInstanceUID = seriesInstanceUID;
-  }
-
-  public String getStatus() {
-    return status;
-  }
-
-  public void setStatus(String status) {
-    this.status = status;
+  public String getAccessionNumber() {
+    return accessionNumber;
   }
 
   public String getMessage() {
     return message;
-  }
-
-  public void setMessage(String message) {
-    this.message = message;
   }
 
   @JsonIgnore
@@ -78,36 +38,76 @@ public class Move {
     return map;
   }
 
-  public String getPatientName() {
-    return patientName;
-  }
-
-  public void setPatientName(String patientName) {
-    this.patientName = patientName;
+  public Long getMoveId() {
+    return moveId;
   }
 
   public String getPatientId() {
     return patientId;
   }
 
-  public void setPatientId(String patientId) {
-    this.patientId = patientId;
+  public String getPatientName() {
+    return patientName;
   }
 
-  public String getAccessionNumber() {
-    return accessionNumber;
-  }
-
-  public void setAccessionNumber(String accessionNumber) {
-    this.accessionNumber = accessionNumber;
+  public Long getQueryId() {
+    return queryId;
   }
 
   public String getQueryRetrieveLevel() {
     return queryRetrieveLevel;
   }
 
+  public String getSeriesInstanceUID() {
+    return seriesInstanceUID;
+  }
+
+  public String getStatus() {
+    return status;
+  }
+
+  public String getStudyInstanceUID() {
+    return studyInstanceUID;
+  }
+
+  public void setAccessionNumber(String accessionNumber) {
+    this.accessionNumber = accessionNumber;
+  }
+
+  public void setMessage(String message) {
+    this.message = message;
+  }
+
+  public void setMoveId(Long moveId) {
+    this.moveId = moveId;
+  }
+
+  public void setPatientId(String patientId) {
+    this.patientId = patientId;
+  }
+
+  public void setPatientName(String patientName) {
+    this.patientName = patientName;
+  }
+
+  public void setQueryId(Long queryId) {
+    this.queryId = queryId;
+  }
+
   public void setQueryRetrieveLevel(String queryRetrieveLevel) {
     this.queryRetrieveLevel = queryRetrieveLevel;
+  }
+
+  public void setSeriesInstanceUID(String seriesInstanceUID) {
+    this.seriesInstanceUID = seriesInstanceUID;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
+
+  public void setStudyInstanceUID(String studyInstanceUID) {
+    this.studyInstanceUID = studyInstanceUID;
   }
 
 }

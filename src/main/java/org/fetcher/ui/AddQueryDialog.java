@@ -60,7 +60,7 @@ public class AddQueryDialog extends Window {
     binder.bind(accessionNumber, Query::getAccessionNumber, Query::setAccessionNumber);
 
     DateField studyDate = new DateField("Study Date(YYYYMMDD)");
-    studyDate.setDateFormat("YYYYMMDD");
+    // studyDate.setDateFormat("YYYYMMDD");
     if (query != null && query.getStudyDateAsDate().isPresent()) {
       Optional<java.util.Date> dt = query.getStudyDateAsDate();
       LocalDateTime ldt = LocalDateTime.ofInstant(dt.get().toInstant(), ZoneId.systemDefault());

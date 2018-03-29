@@ -79,8 +79,12 @@ import java.util.concurrent.ScheduledExecutorService;
 public class MoveSCU extends Device {
 
   private static enum InformationModel {
-    PatientRoot(UID.PatientRootQueryRetrieveInformationModelMOVE, "STUDY"), StudyRoot(UID.StudyRootQueryRetrieveInformationModelMOVE, "STUDY"), PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelMOVERetired,
-        "STUDY"), CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveMOVE, "IMAGE"), HangingProtocol(UID.HangingProtocolInformationModelMOVE, null), ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelMOVE, null);
+    PatientRoot(UID.PatientRootQueryRetrieveInformationModelMOVE, "STUDY"), StudyRoot(
+        UID.StudyRootQueryRetrieveInformationModelMOVE,
+        "STUDY"), PatientStudyOnly(UID.PatientStudyOnlyQueryRetrieveInformationModelMOVERetired,
+            "STUDY"), CompositeInstanceRoot(UID.CompositeInstanceRootRetrieveMOVE, "IMAGE"), HangingProtocol(
+                UID.HangingProtocolInformationModelMOVE,
+                null), ColorPalette(UID.ColorPaletteQueryRetrieveInformationModelMOVE, null);
 
     final String cuid;
     final String level;
@@ -95,56 +99,7 @@ public class MoveSCU extends Device {
 
   private static final int[] DEF_IN_FILTER = { Tag.SOPInstanceUID, Tag.StudyInstanceUID, Tag.SeriesInstanceUID };
 
-  public final ApplicationEntity ae = new ApplicationEntity("MOVESCU");
-  public final Connection conn = new Connection();
-  public final Connection remote = new Connection();
-  public final AAssociateRQ rq = new AAssociateRQ();
-  private int priority;
-  private String destination;
-  private InformationModel model;
-  private Attributes keys = new Attributes();
-  private int[] inFilter = DEF_IN_FILTER;
-  public Association as;
-
-  public MoveSCU() throws IOException {
-    super("movescu");
-    addConnection(conn);
-    addApplicationEntity(ae);
-    ae.addConnection(conn);
-  }
-
-  public final void setPriority(int priority) {
-    this.priority = priority;
-  }
-
-  public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
-    this.model = model;
-    rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
-    if (relational)
-      rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] { 1 }));
-    if (model.level != null)
-      addLevel(model.level);
-  }
-
-  public void addLevel(String s) {
-    keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
-  }
-
-  public final void setDestination(String destination) {
-    this.destination = destination;
-  }
-
-  public void addKey(int tag, String... ss) {
-    VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
-    keys.setString(tag, vr, ss);
-  }
-
-  public final void setInputFilter(int[] inFilter) {
-    this.inFilter = inFilter;
-  }
-
   static Options opts = new Options();
-
   static {
     addServiceClassOptions(opts);
     addKeyOptions(opts);
@@ -157,32 +112,70 @@ public class MoveSCU extends Device {
     CLIUtils.addPriorityOption(opts);
     CLIUtils.addCommonOptions(opts);
   }
-
-  public static CommandLine parseComandLine(String[] args) throws ParseException {
-    return CLIUtils.parseComandLine(args, opts, rb, MoveSCU.class);
-  }
-
-  @SuppressWarnings("static-access")
-  private static void addRetrieveLevelOption(Options opts) {
-    opts.addOption(OptionBuilder.hasArg().withArgName("PATIENT|STUDY|SERIES|IMAGE|FRAME").withDescription(rb.getString("level")).create("L"));
-  }
-
   @SuppressWarnings("static-access")
   private static void addDestinationOption(Options opts) {
-    opts.addOption(OptionBuilder.withLongOpt("dest").hasArg().withArgName("aet").withDescription(rb.getString("dest")).create());
+    OptionBuilder.withLongOpt("dest");
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("aet");
+    OptionBuilder.withDescription(rb.getString("dest"));
+    opts.addOption(
+        OptionBuilder.create());
 
   }
-
   @SuppressWarnings("static-access")
   private static void addKeyOptions(Options opts) {
-    opts.addOption(OptionBuilder.hasArgs().withArgName("attr=value").withValueSeparator('=').withDescription(rb.getString("match")).create("m"));
-    opts.addOption(OptionBuilder.hasArgs().withArgName("attr").withDescription(rb.getString("in-attr")).create("i"));
+    OptionBuilder.hasArgs();
+    OptionBuilder.withArgName("attr=value");
+    OptionBuilder.withValueSeparator('=');
+    OptionBuilder
+        .withDescription(rb.getString("match"));
+    opts.addOption(OptionBuilder.create("m"));
+    OptionBuilder.hasArgs();
+    OptionBuilder.withArgName("attr");
+    OptionBuilder.withDescription(rb.getString("in-attr"));
+    opts.addOption(OptionBuilder.create("i"));
   }
-
+  @SuppressWarnings("static-access")
+  private static void addRetrieveLevelOption(Options opts) {
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("PATIENT|STUDY|SERIES|IMAGE|FRAME");
+    OptionBuilder
+        .withDescription(rb.getString("level"));
+    opts.addOption(OptionBuilder.create("L"));
+  }
   private static void addServiceClassOptions(Options opts) {
-    opts.addOption(OptionBuilder.hasArg().withArgName("name").withDescription(rb.getString("model")).create("M"));
+    OptionBuilder.hasArg();
+    OptionBuilder.withArgName("name");
+    OptionBuilder.withDescription(rb.getString("model"));
+    opts.addOption(OptionBuilder.create("M"));
     CLIUtils.addTransferSyntaxOptions(opts);
     opts.addOption(null, "relational", false, rb.getString("relational"));
+  }
+  static void configureKeys(MoveSCU main, CommandLine cl) {
+    if (cl.hasOption("m")) {
+      String[] keys = cl.getOptionValues("m");
+      for (int i = 1; i < keys.length; i++, i++)
+        main.addKey(CLIUtils.toTag(keys[i - 1]), StringUtils.split(keys[i], '/'));
+    }
+    if (cl.hasOption("L"))
+      main.addLevel(cl.getOptionValue("L"));
+    if (cl.hasOption("i"))
+      main.setInputFilter(CLIUtils.toTags(cl.getOptionValues("i")));
+  }
+  static void configureServiceClass(MoveSCU main, CommandLine cl) throws ParseException {
+    main.setInformationModel(informationModelOf(cl), CLIUtils.transferSyntaxesOf(cl), cl.hasOption("relational"));
+  }
+  static String destinationOf(CommandLine cl) throws ParseException {
+    if (cl.hasOption("dest"))
+      return cl.getOptionValue("dest");
+    throw new ParseException(rb.getString("missing-dest"));
+  }
+  private static InformationModel informationModelOf(CommandLine cl) throws ParseException {
+    try {
+      return cl.hasOption("M") ? InformationModel.valueOf(cl.getOptionValue("M")) : InformationModel.StudyRoot;
+    } catch (IllegalArgumentException e) {
+      throw new ParseException(MessageFormat.format(rb.getString("invalid-model-name"), cl.getOptionValue("M")));
+    }
   }
 
   @SuppressWarnings("unchecked")
@@ -227,38 +220,44 @@ public class MoveSCU extends Device {
     }
   }
 
-  static void configureServiceClass(MoveSCU main, CommandLine cl) throws ParseException {
-    main.setInformationModel(informationModelOf(cl), CLIUtils.transferSyntaxesOf(cl), cl.hasOption("relational"));
+  public static CommandLine parseComandLine(String[] args) throws ParseException {
+    return CLIUtils.parseComandLine(args, opts, rb, MoveSCU.class);
   }
 
-  static String destinationOf(CommandLine cl) throws ParseException {
-    if (cl.hasOption("dest"))
-      return cl.getOptionValue("dest");
-    throw new ParseException(rb.getString("missing-dest"));
+  public final ApplicationEntity ae = new ApplicationEntity("MOVESCU");
+
+  public final Connection conn = new Connection();
+
+  public final Connection remote = new Connection();
+
+  public final AAssociateRQ rq = new AAssociateRQ();
+
+  private int priority;
+
+  private String destination;
+
+  private InformationModel model;
+
+  private Attributes keys = new Attributes();
+
+  private int[] inFilter = DEF_IN_FILTER;
+
+  public Association as;
+
+  public MoveSCU() throws IOException {
+    super("movescu");
+    addConnection(conn);
+    addApplicationEntity(ae);
+    ae.addConnection(conn);
   }
 
-  static void configureKeys(MoveSCU main, CommandLine cl) {
-    if (cl.hasOption("m")) {
-      String[] keys = cl.getOptionValues("m");
-      for (int i = 1; i < keys.length; i++, i++)
-        main.addKey(CLIUtils.toTag(keys[i - 1]), StringUtils.split(keys[i], '/'));
-    }
-    if (cl.hasOption("L"))
-      main.addLevel(cl.getOptionValue("L"));
-    if (cl.hasOption("i"))
-      main.setInputFilter(CLIUtils.toTags(cl.getOptionValues("i")));
+  public void addKey(int tag, String... ss) {
+    VR vr = ElementDictionary.vrOf(tag, keys.getPrivateCreator(tag));
+    keys.setString(tag, vr, ss);
   }
 
-  private static InformationModel informationModelOf(CommandLine cl) throws ParseException {
-    try {
-      return cl.hasOption("M") ? InformationModel.valueOf(cl.getOptionValue("M")) : InformationModel.StudyRoot;
-    } catch (IllegalArgumentException e) {
-      throw new ParseException(MessageFormat.format(rb.getString("invalid-model-name"), cl.getOptionValue("M")));
-    }
-  }
-
-  public void open() throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
-    as = ae.connect(conn, remote, rq);
+  public void addLevel(String s) {
+    keys.setString(Tag.QueryRetrieveLevel, VR.CS, s);
   }
 
   public void close() throws IOException, InterruptedException {
@@ -268,17 +267,9 @@ public class MoveSCU extends Device {
     }
   }
 
-  public void retrieve(File f) throws IOException, InterruptedException {
-    Attributes attrs = new Attributes();
-    DicomInputStream dis = null;
-    try {
-      dis = new DicomInputStream(f);
-      attrs.addSelected(dis.readDataset(-1, -1), inFilter);
-    } finally {
-      SafeClose.close(dis);
-    }
-    attrs.addAll(keys);
-    retrieve(attrs);
+  public void open()
+      throws IOException, InterruptedException, IncompatibleConnectionException, GeneralSecurityException {
+    as = ae.connect(conn, remote, rq);
   }
 
   public void retrieve() throws IOException, InterruptedException {
@@ -298,6 +289,40 @@ public class MoveSCU extends Device {
 
   public void retrieve(DimseRSPHandler rspHandler) throws IOException, InterruptedException {
     as.cmove(model.cuid, priority, keys, null, destination, rspHandler);
+  }
+
+  public void retrieve(File f) throws IOException, InterruptedException {
+    Attributes attrs = new Attributes();
+    DicomInputStream dis = null;
+    try {
+      dis = new DicomInputStream(f);
+      attrs.addSelected(dis.readDataset(-1, -1), inFilter);
+    } finally {
+      SafeClose.close(dis);
+    }
+    attrs.addAll(keys);
+    retrieve(attrs);
+  }
+
+  public final void setDestination(String destination) {
+    this.destination = destination;
+  }
+
+  public final void setInformationModel(InformationModel model, String[] tss, boolean relational) {
+    this.model = model;
+    rq.addPresentationContext(new PresentationContext(1, model.cuid, tss));
+    if (relational)
+      rq.addExtendedNegotiation(new ExtendedNegotiation(model.cuid, new byte[] { 1 }));
+    if (model.level != null)
+      addLevel(model.level);
+  }
+
+  public final void setInputFilter(int[] inFilter) {
+    this.inFilter = inFilter;
+  }
+
+  public final void setPriority(int priority) {
+    this.priority = priority;
   }
 
 }

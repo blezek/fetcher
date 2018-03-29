@@ -1,6 +1,7 @@
 package org.fetcher.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.opencsv.bean.CsvBindByName;
 
 import org.fetcher.State;
 
@@ -15,16 +16,38 @@ import java.util.Optional;
 public class Query implements Serializable {
   private static final long serialVersionUID = 1L;
   @JsonIgnore
-  static SimpleDateFormat f = new SimpleDateFormat("YYYYMMDD");
+  static SimpleDateFormat f = new SimpleDateFormat("yyyyMMdd");
 
   public long queryId;
+  @CsvBindByName
   public String patientName;
+  @CsvBindByName
   public String patientId;
+  @CsvBindByName
   public String accessionNumber;
+  @CsvBindByName
   public String studyDate;
+  @CsvBindByName
   private String queryRetrieveLevel = "STUDY";
+
   public String status = State.CREATED.toString();;
   public String message;
+
+  public String getAccessionNumber() {
+    return accessionNumber;
+  }
+
+  public String getMessage() {
+    return message;
+  }
+
+  public String getPatientId() {
+    return patientId;
+  }
+
+  public String getPatientName() {
+    return patientName;
+  }
 
   @JsonIgnore
   public Map<String, String> getQueryAttributes() {
@@ -49,72 +72,16 @@ public class Query implements Serializable {
     return queryId;
   }
 
-  public void setQueryId(long queryId) {
-    this.queryId = queryId;
+  public String getQueryRetrieveLevel() {
+    return queryRetrieveLevel;
   }
-
-  public String getPatientName() {
-    return patientName;
-  }
-
-  public void setPatientName(String patientName) {
-    this.patientName = patientName;
-  }
-
-  public String getPatientId() {
-    return patientId;
-  }
-
-  public void setPatientId(String patientId) {
-    this.patientId = patientId;
-  }
-
-  public String getAccessionNumber() {
-    return accessionNumber;
-  }
-
-  public void setAccessionNumber(String accessionNumber) {
-    this.accessionNumber = accessionNumber;
-  }
-
-  public String getStudyDate() {
-    return studyDate;
-  }
-
-  public void setStudyDate(String sd) throws ParseException {
-    this.studyDate = sd;
-  }
-  //
-  // public void setStudyDate(Date studyDate) {
-  // this.studyDate = studyDate;
-  // }
 
   public String getStatus() {
     return status;
   }
 
-  public void setStatus(String status) {
-    this.status = status;
-  }
-
-  public String getMessage() {
-    return message;
-  }
-
-  public void setMessage(String message) {
-    this.message = message;
-  }
-
-  public String getQueryRetrieveLevel() {
-    return queryRetrieveLevel;
-  }
-
-  public void setQueryRetrieveLevel(String queryRetrieveLevel) {
-    this.queryRetrieveLevel = queryRetrieveLevel;
-  }
-
-  public void setStudyDateAsDate(Date studyDate) {
-    this.studyDate = f.format(studyDate);
+  public String getStudyDate() {
+    return studyDate;
   }
 
   @JsonIgnore
@@ -125,5 +92,45 @@ public class Query implements Serializable {
     } catch (Exception e) {
     }
     return dt;
+  }
+
+  public void setAccessionNumber(String accessionNumber) {
+    this.accessionNumber = accessionNumber;
+  }
+
+  public void setMessage(String message) {
+    this.message = message;
+  }
+
+  public void setPatientId(String patientId) {
+    this.patientId = patientId;
+  }
+
+  public void setPatientName(String patientName) {
+    this.patientName = patientName;
+  }
+
+  public void setQueryId(long queryId) {
+    this.queryId = queryId;
+  }
+
+  public void setQueryRetrieveLevel(String queryRetrieveLevel) {
+    this.queryRetrieveLevel = queryRetrieveLevel;
+  }
+
+  public void setStatus(String status) {
+    this.status = status;
+  }
+
+  public void setStudyDate(String sd) throws ParseException {
+    this.studyDate = sd;
+  }
+  //
+  // public void setStudyDate(Date studyDate) {
+  // this.studyDate = studyDate;
+  // }
+
+  public void setStudyDateAsDate(Date studyDate) {
+    this.studyDate = f.format(studyDate);
   }
 }
