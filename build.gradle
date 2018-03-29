@@ -58,6 +58,7 @@ dependencies {
   compile group: 'com.vaadin', name: 'vaadin-themes', version: vaadinVersion
   compile group: 'com.vaadin', name: 'vaadin-client-compiled', version: vaadinVersion
   // compile group: 'org.vaadin.teemu', name: 'switch', version: '3.0.0'
+  compile group: 'org.vaadin.teemusa', name: 'gridextensionpack', version: '2.0.0'
   
   // https://mvnrepository.com/artifact/org.dcm4che/dcm4che-core
   compile group: 'org.dcm4che', name: 'dcm4che-core', version: '5.12.0', excludes
@@ -74,6 +75,8 @@ dependencies {
   // Expose prometheus
   compile "io.prometheus:simpleclient_dropwizard:0.0.23"
   compile "io.prometheus:simpleclient_servlet:0.0.23"
+
+  
   
   testCompile (
     'io.dropwizard:dropwizard-testing:' + dropwizardVersion,

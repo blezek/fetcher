@@ -4,7 +4,6 @@ import com.vaadin.data.provider.QuerySortOrder;
 import com.vaadin.shared.data.sort.SortDirection;
 import com.vaadin.ui.Button;
 import com.vaadin.ui.CustomComponent;
-import com.vaadin.ui.Grid;
 import com.vaadin.ui.Grid.Column;
 import com.vaadin.ui.Grid.SelectionMode;
 import com.vaadin.ui.HorizontalLayout;
@@ -19,6 +18,9 @@ import org.fetcher.model.Move;
 import org.fetcher.model.Query;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.vaadin.teemusa.gridextensions.SelectGrid;
+import org.vaadin.teemusa.gridextensions.client.tableselection.TableSelectionState.TableSelectionMode;
+import org.vaadin.teemusa.gridextensions.tableselection.TableSelectionModel;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -27,11 +29,38 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class QueryGrid extends CustomComponent implements RefreshListener {
   static Logger logger = LoggerFactory.getLogger(QueryGrid.class);
   VerticalLayout layout = new VerticalLayout();
-  Grid<Query> grid = new Grid<>(Query.class);
-  Grid<Move> moves = new Grid<>(Move.class);
+  // Grid<Query> grid = new Grid<>(Query.class);
+  SelectGrid<Query> grid = new SelectGrid<>();
+  // Grid<Move> moves = new Grid<>(Move.class);
+  SelectGrid<Move> moves = new SelectGrid<>();
 
   public QueryGrid(UI ui) {
 
+    TableSelectionModel<Move> model = new TableSelectionModel<>();
+    model.setMode(TableSelectionMode.SHIFT);
+    moves.setSelectionModel(model);
+    TableSelectionModel<Query> gridModel = new TableSelectionModel<>();
+    gridModel.setMode(TableSelectionMode.SHIFT);
+    grid.setSelectionModel(gridModel);
+    // grid.removeColumn("queryId");
+    // grid.removeColumn("queryAttributes");
+    // grid.removeColumn("studyDateAsDate");
+    // grid.setColumnOrder("patientId", "patientName", "accessionNumber",
+    // "studyDate", "status", "message");
+    grid.addColumn(Query::getPatientId).setCaption("Patient Id");
+    grid.addColumn(Query::getPatientName).setCaption("Patient Name");
+    grid.addColumn(Query::getAccessionNumber).setCaption("Accession Number");
+    grid.addColumn(Query::getStudyDate).setCaption("Study Date");
+    grid.addColumn(Query::getStatus).setCaption("Status");
+    grid.addColumn(Query::getMessage).setCaption("Message");
+    grid.setWidth("100%");
+    grid.getColumns().forEach((c) -> {
+      c.setHidable(true);
+      c.setSortable(true);
+
+      logger.info("Query columns: " + c.getCaption() + " -- " + c.getId());
+    });
+    grid.getEditor().setEnabled(true);
     // Buttons
     HorizontalLayout hLayout = new HorizontalLayout();
     Button queue = new Button("Queue Query", click -> {
@@ -95,24 +124,16 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
     hLayout.addComponents(queue, queueAll, addQuery, editQuery, deleteButton, refresh, upload);
     layout.addComponent(hLayout);
 
-    grid.setDataProvider((
-
-        List<QuerySortOrder> sortOrder, int offset, int limit) -> {
+    grid.setDataProvider((List<QuerySortOrder> sortOrder, int offset, int limit) -> {
       return Main.jdbi.withHandle((handle) -> {
-        return handle.createQuery("select * from query " + buildSortOrder(sortOrder) + " offset " + offset + " rows fetch first " + limit + " rows only").map(Query.class).list().stream();
+        return handle.createQuery("select * from query " + buildSortOrder(sortOrder) + " offset " + offset
+            + " rows fetch first " + limit + " rows only").map(Query.class).list().stream();
       });
     }, () -> {
       return Main.queryDAO.queryCount();
     });
-    grid.removeColumn("queryId");
-    grid.removeColumn("queryAttributes");
-    grid.removeColumn("studyDateAsDate");
-    grid.setColumnOrder("patientId", "patientName", "accessionNumber", "studyDate", "status", "message");
-    grid.setWidth("100%");
-    grid.getColumns().forEach((c) -> {
-      logger.info("Query columns: " + c.getCaption() + " -- " + c.getId());
-    });
-    grid.setSelectionMode(SelectionMode.MULTI);
+
+    // grid.setSelectionMode(SelectionMode.MULTI);
     grid.addSelectionListener(c -> {
       editQuery.setEnabled(c.getAllSelectedItems().size() == 1);
     });
@@ -176,18 +197,25 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
 
     moves.setDataProvider((List<QuerySortOrder> sortOrder, int offset, int limit) -> {
       return Main.jdbi.withHandle((handle) -> {
-        return handle.createQuery("select * from move " + buildSortOrder(sortOrder) + " offset " + offset + " rows fetch first " + limit + " rows only").map(Move.class).list().stream();
+        return handle.createQuery("select * from move " + buildSortOrder(sortOrder) + " offset " + offset
+            + " rows fetch first " + limit + " rows only").map(Move.class).list().stream();
       });
     }, () -> {
       return Main.jdbi.withHandle((handle) -> {
         return handle.createQuery("select count(*) from move").mapTo(Integer.class).first();
       });
     });
-    moves.removeColumn("moveAttributes");
-    moves.removeColumn("moveId");
-    moves.removeColumn("queryId");
-    moves.setColumnOrder("patientId", "patientName", "accessionNumber", "status", "message");
-
+    // moves.addColumn(Move::getMoveId).setCaption("Move Id");
+    // // moves.removeColumn("moveAttributes");
+    // // moves.removeColumn("moveId");
+    // // moves.removeColumn("queryId");
+    // moves.setColumnOrder("patientId", "patientName", "accessionNumber", "status",
+    // "message");
+    moves.addColumn(Move::getPatientId).setCaption("Patient Id");
+    moves.addColumn(Move::getPatientName).setCaption("Patient Name");
+    moves.addColumn(Move::getAccessionNumber).setCaption("Accession Number");
+    moves.addColumn(Move::getStatus).setCaption("Status");
+    moves.addColumn(Move::getMessage).setCaption("Message");
     for (Column<Move, ?> c : moves.getColumns()) {
       logger.info("Move columns: " + c.getCaption() + " -- " + c.getId());
     }
@@ -195,7 +223,8 @@ public class QueryGrid extends CustomComponent implements RefreshListener {
     moves.setSelectionMode(SelectionMode.MULTI);
 
     layout.addComponentsAndExpand(grid);
-    layout.addComponent(new HorizontalLayout(queueAllMoves, queueMoves, queueCreatedMoves, queueFailedMoves, deleteSucceeded));
+    layout.addComponent(
+        new HorizontalLayout(queueAllMoves, queueMoves, queueCreatedMoves, queueFailedMoves, deleteSucceeded));
     layout.addComponentsAndExpand(moves);
 
     setCompositionRoot(layout);
