@@ -29,34 +29,6 @@ public class FetcherResource {
   }
 
   @PUT
-  @Path("find/start")
-  public Fetcher start() {
-    fetcher.startFind();
-    return fetcher;
-  }
-
-  @PUT
-  @Path("find/stop")
-  public Fetcher stop() throws InterruptedException {
-    fetcher.stopFind();
-    return fetcher;
-  }
-
-  @PUT
-  @Path("move/start")
-  public Fetcher startMove() {
-    fetcher.startMove();
-    return fetcher;
-  }
-
-  @PUT
-  @Path("move/stop")
-  public Fetcher stopMove() throws InterruptedException {
-    fetcher.stopMove();
-    return fetcher;
-  }
-
-  @PUT
   @Path("find/queue")
   public Fetcher queueAll() {
     try {
@@ -89,6 +61,34 @@ public class FetcherResource {
   @Path("move/queue/{qid}")
   public Fetcher queueMove(@PathParam("id") long qid) {
     fetcher.queueMove(qid);
+    return fetcher;
+  }
+
+  @PUT
+  @Path("find/start")
+  public Fetcher start() {
+    fetcher.startFind();
+    return fetcher;
+  }
+
+  @PUT
+  @Path("move/start")
+  public Fetcher startMove() {
+    fetcher.startMove();
+    return fetcher;
+  }
+
+  @PUT
+  @Path("find/stop")
+  public Fetcher stop() throws InterruptedException {
+    fetcher.stopFind();
+    return fetcher;
+  }
+
+  @PUT
+  @Path("move/stop")
+  public Fetcher stopMove() throws InterruptedException {
+    fetcher.stopMove();
     return fetcher;
   }
 }

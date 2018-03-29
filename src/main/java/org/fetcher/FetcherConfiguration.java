@@ -13,6 +13,10 @@ public class FetcherConfiguration extends Configuration {
   @Valid
   private DataSourceFactory dataSourceFactory = new DataSourceFactory();
 
+  @NotNull
+  @Valid
+  private Fetcher fetcher = new Fetcher();
+
   /**
    * A getter for the database factory.
    *
@@ -23,10 +27,6 @@ public class FetcherConfiguration extends Configuration {
   public DataSourceFactory getDataSourceFactory() {
     return dataSourceFactory;
   }
-
-  @NotNull
-  @Valid
-  private Fetcher fetcher = new Fetcher();
 
   @JsonProperty("fetch")
   public Fetcher getFetcher() {

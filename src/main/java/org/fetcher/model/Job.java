@@ -18,14 +18,6 @@ public class Job implements Serializable {
   public int movesPerSecond = 2;
   public int concurrentMoves = 5;
 
-  public int getJobId() {
-    return jobId;
-  }
-
-  public String getName() {
-    return name;
-  }
-
   public String getCalledAET() {
     return calledAET;
   }
@@ -34,12 +26,16 @@ public class Job implements Serializable {
     return calledPort;
   }
 
-  public String getHostname() {
-    return hostname;
-  }
-
   public String getCallingAET() {
     return callingAET;
+  }
+
+  public int getConcurrentMoves() {
+    return concurrentMoves;
+  }
+
+  public int getConcurrentQueries() {
+    return concurrentQueries;
   }
 
   public String getDestinationAET() {
@@ -50,28 +46,24 @@ public class Job implements Serializable {
     return fetchBy;
   }
 
-  public int getQueriesPerSecond() {
-    return queriesPerSecond;
+  public String getHostname() {
+    return hostname;
   }
 
-  public int getConcurrentQueries() {
-    return concurrentQueries;
+  public int getJobId() {
+    return jobId;
   }
 
   public int getMovesPerSecond() {
     return movesPerSecond;
   }
 
-  public int getConcurrentMoves() {
-    return concurrentMoves;
+  public String getName() {
+    return name;
   }
 
-  public void setJobId(int jobId) {
-    this.jobId = jobId;
-  }
-
-  public void setName(String name) {
-    this.name = name;
+  public int getQueriesPerSecond() {
+    return queriesPerSecond;
   }
 
   public void setCalledAET(String calledAET) {
@@ -82,12 +74,16 @@ public class Job implements Serializable {
     this.calledPort = calledPort;
   }
 
-  public void setHostname(String hostname) {
-    this.hostname = hostname;
-  }
-
   public void setCallingAET(String callingAET) {
     this.callingAET = callingAET;
+  }
+
+  public void setConcurrentMoves(int concurrentMoves) {
+    this.concurrentMoves = concurrentMoves;
+  }
+
+  public void setConcurrentQueries(int concurrentQueries) {
+    this.concurrentQueries = concurrentQueries;
   }
 
   public void setDestinationAET(String destinationAET) {
@@ -98,20 +94,24 @@ public class Job implements Serializable {
     this.fetchBy = fetchBy;
   }
 
-  public void setQueriesPerSecond(int queriesPerSecond) {
-    this.queriesPerSecond = queriesPerSecond;
+  public void setHostname(String hostname) {
+    this.hostname = hostname;
   }
 
-  public void setConcurrentQueries(int concurrentQueries) {
-    this.concurrentQueries = concurrentQueries;
+  public void setJobId(int jobId) {
+    this.jobId = jobId;
   }
 
   public void setMovesPerSecond(int movesPerSecond) {
     this.movesPerSecond = movesPerSecond;
   }
 
-  public void setConcurrentMoves(int concurrentMoves) {
-    this.concurrentMoves = concurrentMoves;
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public void setQueriesPerSecond(int queriesPerSecond) {
+    this.queriesPerSecond = queriesPerSecond;
   }
 
 }

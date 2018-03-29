@@ -24,63 +24,63 @@ import io.prometheus.client.dropwizard.DropwizardExports;
 import io.prometheus.client.exporter.MetricsServlet;
 
 public class Main extends Application<FetcherConfiguration> {
-    public static Fetcher fetcher;
-    public static DBI jdbi;
-    public static ObjectMapper objectMapper;
-    public static MetricRegistry metrics;
+  @VaadinServletConfiguration(ui = FetcherUI.class, productionMode = false)
+  public static class FetcherVaadinServlet extends VaadinServlet {
+    private static final long serialVersionUID = 1L;
+  }
+  public static Fetcher fetcher;
+  public static DBI jdbi;
+  public static ObjectMapper objectMapper;
 
-    public static void main(String[] args) throws Exception {
-	try {
-	    // homePath = new File(args[1]).getParentFile();
-	    new Main().run(args);
-	} catch (Throwable e) {
-	    e.printStackTrace();
-	}
+  public static MetricRegistry metrics;
+
+  public static QueryDAO queryDAO;
+
+  public static void main(String[] args) throws Exception {
+    try {
+      // homePath = new File(args[1]).getParentFile();
+      new Main().run(args);
+    } catch (Throwable e) {
+      e.printStackTrace();
     }
+  }
 
-    @Override
-    public String getName() {
-	return "dewey";
-    }
+  @Override
+  public String getName() {
+    return "dewey";
+  }
 
-    @Override
-    public void initialize(Bootstrap<FetcherConfiguration> bootstrap) {
-	bootstrap.addBundle(new FlywayBundle());
-	bootstrap.addBundle(new MultiPartBundle());
-	bootstrap.addBundle(new WebDBConsole());
-	bootstrap.addBundle(new AssetsBundle("/VAADIN", "/VAADIN", null, "vaadin"));
+  @Override
+  public void initialize(Bootstrap<FetcherConfiguration> bootstrap) {
+    bootstrap.addBundle(new FlywayBundle());
+    bootstrap.addBundle(new MultiPartBundle());
+    bootstrap.addBundle(new WebDBConsole());
+    bootstrap.addBundle(new AssetsBundle("/VAADIN", "/VAADIN", null, "vaadin"));
 
-    }
+  }
 
-    public static QueryDAO queryDAO;
+  @Override
+  public void run(FetcherConfiguration configuration, Environment environment) throws Exception {
 
-    @Override
-    public void run(FetcherConfiguration configuration, Environment environment) throws Exception {
+    metrics = environment.metrics();
+    CollectorRegistry.defaultRegistry.register(new DropwizardExports(environment.metrics()));
+    environment.servlets().addServlet("prometheus", new MetricsServlet()).addMapping("/prometheus/*");
 
-	metrics = environment.metrics();
-	CollectorRegistry.defaultRegistry.register(new DropwizardExports(environment.metrics()));
-	environment.servlets().addServlet("prometheus", new MetricsServlet()).addMapping("/prometheus/*");
+    jdbi = new DBIFactory().build(environment, configuration.getDataSourceFactory(), "jbdi");
+    queryDAO = jdbi.onDemand(QueryDAO.class);
 
-	jdbi = new DBIFactory().build(environment, configuration.getDataSourceFactory(), "jbdi");
-	queryDAO = jdbi.onDemand(QueryDAO.class);
+    environment.jersey().register(new FetcherResource(configuration.getFetcher()));
+    environment.jersey().register(new QueryResource());
 
-	environment.jersey().register(new FetcherResource(configuration.getFetcher()));
-	environment.jersey().register(new QueryResource());
+    fetcher = configuration.getFetcher();
+    environment.lifecycle().manage(configuration.getFetcher());
+    objectMapper = environment.getObjectMapper();
+    environment.jersey().register(new JsonProcessingExceptionMapper(true));
 
-	fetcher = configuration.getFetcher();
-	environment.lifecycle().manage(configuration.getFetcher());
-	objectMapper = environment.getObjectMapper();
-	environment.jersey().register(new JsonProcessingExceptionMapper(true));
+    // Add a session handler
+    environment.servlets().setSessionHandler(new SessionHandler());
+    environment.getApplicationContext().addServlet(FetcherVaadinServlet.class, "/ui/*");
 
-	// Add a session handler
-	environment.servlets().setSessionHandler(new SessionHandler());
-	environment.getApplicationContext().addServlet(FetcherVaadinServlet.class, "/ui/*");
-
-    }
-
-    @VaadinServletConfiguration(ui = FetcherUI.class, productionMode = false)
-    public static class FetcherVaadinServlet extends VaadinServlet {
-	private static final long serialVersionUID = 1L;
-    }
+  }
 
 }

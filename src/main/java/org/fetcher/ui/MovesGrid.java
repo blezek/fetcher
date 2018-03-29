@@ -20,7 +20,8 @@ public class MovesGrid extends CustomComponent {
     Grid<Move> moves = new Grid<>(Move.class);
     moves.setDataProvider((List<QuerySortOrder> sortOrder, int offset, int limit) -> {
       return Main.jdbi.withHandle((handle) -> {
-        return handle.createQuery("select * from move offset " + offset + " rows fetch first " + limit + " rows only").map(Move.class).list().stream();
+        return handle.createQuery("select * from move offset " + offset + " rows fetch first " + limit + " rows only")
+            .map(Move.class).list().stream();
       });
     }, () -> {
       return Main.jdbi.withHandle((handle) -> {

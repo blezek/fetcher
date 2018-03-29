@@ -34,46 +34,11 @@ public class QueryResource {
   public QueryResource() {
   }
 
-  @GET
-  public JsonNode getAll() {
-    List<Query> q = Main.queryDAO.getQueries();
-    for (Query query : q) {
-      logger.info(query.toString());
-    }
-    ObjectNode n = Main.objectMapper.createObjectNode();
-    n.putPOJO("query", q);
-    return n;
-  }
-
   @POST
   public Query create(Query q) {
     q.status = State.CREATED.toString();
     q.queryId = Main.queryDAO.createQuery(q);
     return q;
-  }
-
-  @PUT
-  @Path("{id}")
-  public Query update(@PathParam("id") int queryId, Query q) {
-    int count = exists(queryId);
-    if (count != 1) {
-      throw new WebApplicationException("query does not exist in the job", Status.NOT_FOUND);
-    }
-    Main.queryDAO.update(q);
-    return q;
-  }
-
-  @GET
-  @Path("{id}/moves")
-  public JsonNode getMoves(@PathParam("id") int queryId) {
-    int count = exists(queryId);
-    if (count != 1) {
-      throw new WebApplicationException("query does not exist", Status.NOT_FOUND);
-    }
-    List<Move> q = Main.queryDAO.getMoves(queryId);
-    ObjectNode n = Main.objectMapper.createObjectNode();
-    n.putPOJO("query", q);
-    return n;
   }
 
   @DELETE
@@ -91,9 +56,45 @@ public class QueryResource {
   public int exists(int queryId) throws CallbackFailedException {
     // Check to see if it exists
     int count = Main.jdbi.withHandle(handle -> {
-      return handle.createQuery("select count(*) from query where queryId = :queryId").bind("queryId", queryId).mapTo(Integer.class).first();
+      return handle.createQuery("select count(*) from query where queryId = :queryId").bind("queryId", queryId)
+          .mapTo(Integer.class).first();
     });
     return count;
+  }
+
+  @GET
+  public JsonNode getAll() {
+    List<Query> q = Main.queryDAO.getQueries();
+    for (Query query : q) {
+      logger.info(query.toString());
+    }
+    ObjectNode n = Main.objectMapper.createObjectNode();
+    n.putPOJO("query", q);
+    return n;
+  }
+
+  @GET
+  @Path("{id}/moves")
+  public JsonNode getMoves(@PathParam("id") int queryId) {
+    int count = exists(queryId);
+    if (count != 1) {
+      throw new WebApplicationException("query does not exist", Status.NOT_FOUND);
+    }
+    List<Move> q = Main.queryDAO.getMoves(queryId);
+    ObjectNode n = Main.objectMapper.createObjectNode();
+    n.putPOJO("query", q);
+    return n;
+  }
+
+  @PUT
+  @Path("{id}")
+  public Query update(@PathParam("id") int queryId, Query q) {
+    int count = exists(queryId);
+    if (count != 1) {
+      throw new WebApplicationException("query does not exist in the job", Status.NOT_FOUND);
+    }
+    Main.queryDAO.update(q);
+    return q;
   }
 
 }
