@@ -1,5 +1,5 @@
 create table query (
-  queryId integer not null generated always as identity (increment by 1),
+  queryId integer primary key autoincrement,
   patientName varchar(128),
   patientId varchar(512),
   accessionNumber varchar(512),
@@ -11,12 +11,12 @@ create table query (
 );
 
 create table move (
-  moveId integer not null generated always as identity (increment by 1),
+  moveId integer primary key autoincrement,
   queryId integer not null,
   studyInstanceUID varchar(512),
   seriesInstanceUID varchar(512),
   studyDescription varchar(512),
-  seriesDescription varchar(512),  
+  seriesDescription varchar(512),
   patientName varchar(128),
   patientId varchar(512),
   accessionNumber varchar(512),
