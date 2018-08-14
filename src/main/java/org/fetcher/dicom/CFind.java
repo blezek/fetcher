@@ -89,8 +89,14 @@ public class CFind {
     args.add("PatientName");
     args.add("-r");
     args.add("AccessionNumber");
+    if (query.getQueryRetrieveLevel().equalsIgnoreCase("SERIES")) {
+      args.add("-r");
+      args.add("SeriesDescription");
+      args.add("-r");
+      args.add("StudyDescription");
+    }
 
-    logger.info(args.toString());
+    logger.debug(args.toString());
 
     CommandLine cl = FindSCU.parseComandLine(args.toArray(new String[args.size()]));
     FindSCU main = new FindSCU();
