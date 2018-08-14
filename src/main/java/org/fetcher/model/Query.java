@@ -18,6 +18,7 @@ public class Query implements Serializable {
   @JsonIgnore
   static SimpleDateFormat f = new SimpleDateFormat("yyyyMMdd");
 
+  @CsvBindByName
   public long queryId;
   @CsvBindByName
   public String patientName;
@@ -32,6 +33,7 @@ public class Query implements Serializable {
 
   public String status = State.CREATED.toString();;
   public String message;
+  private String studyInstanceUID;
 
   public String getAccessionNumber() {
     return accessionNumber;
@@ -64,6 +66,9 @@ public class Query implements Serializable {
     }
     if (studyDate != null) {
       map.put("StudyDate", studyDate);
+    }
+    if (studyInstanceUID != null) {
+      map.put("StudyInstanceUID", studyInstanceUID);
     }
     return map;
   }
@@ -132,5 +137,13 @@ public class Query implements Serializable {
 
   public void setStudyDateAsDate(Date studyDate) {
     this.studyDate = f.format(studyDate);
+  }
+
+  public String getStudyInstanceUID() {
+    return studyInstanceUID;
+  }
+
+  public void setStudyInstanceUID(String studyInstanceUID) {
+    this.studyInstanceUID = studyInstanceUID;
   }
 }

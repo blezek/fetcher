@@ -57,7 +57,7 @@ public class CMove {
 
     args.add("--soclose-delay");
     args.add("1000");
-    logger.info(args.toString());
+    logger.debug(args.toString());
     CommandLine cl = MoveSCU.parseComandLine(args.toArray(new String[args.size()]));
     MoveSCU main = new MoveSCU();
     CLIUtils.configureConnect(main.remote, main.rq, cl);

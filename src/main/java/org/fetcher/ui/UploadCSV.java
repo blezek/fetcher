@@ -126,7 +126,7 @@ public class UploadCSV implements Receiver, SucceededListener, FileDropHandler<V
     });
   }
 
-  private List<Query> loadQueries(InputStream out) {
+  public static List<Query> loadQueries(InputStream out) {
     List<Query> queries = new ArrayList<>();
     try (InputStreamReader in = new InputStreamReader(out)) {
       // CSVReader csvReader = new

@@ -28,11 +28,12 @@ public class Main extends Application<FetcherConfiguration> {
   public static class FetcherVaadinServlet extends VaadinServlet {
     private static final long serialVersionUID = 1L;
   }
+
   public static Fetcher fetcher;
   public static DBI jdbi;
-  public static ObjectMapper objectMapper;
+  public static ObjectMapper objectMapper = new ObjectMapper();
 
-  public static MetricRegistry metrics;
+  public static MetricRegistry metrics = new MetricRegistry();
 
   public static QueryDAO queryDAO;
 

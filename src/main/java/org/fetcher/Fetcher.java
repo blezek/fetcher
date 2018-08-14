@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.util.concurrent.RateLimiter;
 
 import org.dcm4che3.data.Tag;
+import org.fetcher.command.ProgressCallback;
 import org.fetcher.dicom.CFind;
 import org.fetcher.dicom.CMove;
 import org.fetcher.model.Move;
@@ -27,11 +28,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import io.dropwizard.lifecycle.Managed;
+import picocli.CommandLine.Option;
 
 public class Fetcher implements Managed {
   enum FetcherState {
@@ -39,24 +42,36 @@ public class Fetcher implements Managed {
   }
 
   static Logger logger = LoggerFactory.getLogger(Fetcher.class);
+
+  @Option(names = { "--called" }, description = "Called AE Title")
   public String calledAET = "pacs";
+
+  @Option(names = { "--port" }, description = "Called port")
   @Min(1)
   @Max(65535)
   public int calledPort = 1234;
+  @Option(names = { "--hostname", "--host" }, description = "Called hostname")
   public String hostname = "example.com";
+  @Option(names = { "--calling" }, description = "Calling AE Title")
   public String callingAET = "fetcher";
 
+  @Option(names = { "--destination" }, description = "Destination AE Title")
   public String destinationAET = "fetcher";
+
+  @Option(names = "--queriesPerSecond", description = "Number of queries per second")
   @DecimalMin("0.1")
   public double queriesPerSecond = 2;
 
+  @Option(names = "--concurrentQueries", description = "Number of concurrent queries")
   @Min(1)
   public int concurrentQueries = 5;
+  @Option(names = "--concurrentMoves", description = "Number of concurrent moves")
   @Min(1)
   public int concurrentMoves = 5;
 
+  @Option(names = "--imagesPerSecond", description = "Limit of images per second")
   @DecimalMin("0.1")
-  public double imagesPerSecond = 10;;
+  public double imagesPerSecond = 100;
 
   FetcherState queryState = FetcherState.STOPPED;
   FetcherState moveState = FetcherState.STOPPED;
@@ -173,6 +188,7 @@ public class Fetcher implements Managed {
   public void queueAll() {
     throwIfStateIsNot(FetcherState.STOPPED);
     Main.jdbi.useHandle(handle -> {
+      handle.execute("delete from query where queryRetrieveLevel = 'SERIES'");
       handle.createStatement("update query set status = :status, message = :message")
           .bind("status", State.QUEUED.toString()).bind("message", (String) null).execute();
     });
@@ -190,7 +206,7 @@ public class Fetcher implements Managed {
 
   private void queueMove(Integer key) {
     movePool.execute(() -> {
-      logger.info("move " + key);
+      logger.debug("move " + key);
       Move move = Main.queryDAO.getMove(key);
       Main.jdbi.useHandle(handle -> {
         handle.execute("update move set status = ? where moveId = ?", State.PENDING.toString(), move.getMoveId());
@@ -349,20 +365,43 @@ public class Fetcher implements Managed {
       return;
     }
     queryState = FetcherState.RUNNING;
-
     // Push them all into the queue
     for (Query query : Main.queryDAO.getQueries(State.QUEUED)) {
-      queryPool.execute(() -> {
-        // Execute the DICOM query
-        logger.info("query for " + query);
-        queryLimit.acquire();
-        Main.jdbi.useHandle(handle -> {
-          handle.update("delete from move where queryId = ?", query.queryId);
-        });
-        CFind find = new CFind(this, query);
-        try {
-          find.execute(data -> {
-            logger.info("Got data: " + data);
+      doQuery(query);
+    }
+  }
+
+  /**
+   * @param query
+   */
+  public Future<Boolean> doQuery(Query query) {
+    return queryPool.submit(() -> {
+      // Execute the DICOM query
+      logger.debug("query for " + query);
+      queryLimit.acquire();
+      Main.jdbi.useHandle(handle -> {
+        handle.update("delete from move where queryId = ?", query.queryId);
+      });
+      CFind find = new CFind(this, query);
+      try {
+        find.execute(data -> {
+          logger.debug("Got data: " + data);
+
+          // If our query was a study level query, create new queries for the series
+          if (query.getQueryRetrieveLevel().equalsIgnoreCase("STUDY")) {
+            // Create sub queries
+            Query q = new Query();
+            q.setAccessionNumber(data.getString(Tag.AccessionNumber, null));
+            q.setPatientId(data.getString(Tag.PatientID, null));
+            q.setPatientName(data.getString(Tag.PatientName, null));
+            q.setQueryRetrieveLevel("SERIES");
+            q.setStudyInstanceUID(data.getString(Tag.StudyInstanceUID));
+            q.setMessage("Created by STUDY query");
+            q.setStatus(State.QUEUED.toString());
+            int id = Main.queryDAO.createQuery(q);
+            q.setQueryId(id);
+            doQuery(q);
+          } else {
             Move m = new Move();
             m.setQueryId(query.getQueryId());
             m.setStudyInstanceUID(data.getString(Tag.StudyInstanceUID, (String) null));
@@ -370,6 +409,8 @@ public class Fetcher implements Managed {
             m.setPatientId(data.getString(Tag.PatientID, null));
             m.setPatientName(data.getString(Tag.PatientName, null));
             m.setAccessionNumber(data.getString(Tag.AccessionNumber, null));
+            m.setSeriesDescription(data.getString(Tag.SeriesDescription, null));
+            m.setStudyDescription(data.getString(Tag.StudyDescription, null));
             m.setStatus(State.CREATED.toString());
             m.setQueryRetrieveLevel(query.getQueryRetrieveLevel());
 
@@ -379,18 +420,18 @@ public class Fetcher implements Managed {
             if (moveState == FetcherState.RUNNING) {
               queueMove(key);
             }
-            return moveState != FetcherState.STOPPED;
-          });
-          query.status = State.SUCCEEDED.toString();
-          Main.queryDAO.update(query);
-        } catch (Exception e) {
-          query.status = State.FAILED.toString();
-          query.message = e.getMessage();
-          logger.error("Error in query", e);
-          Main.queryDAO.update(query);
-        }
-      });
-    }
+          }
+          return moveState != FetcherState.STOPPED;
+        });
+        query.status = State.SUCCEEDED.toString();
+        Main.queryDAO.update(query);
+      } catch (Exception e) {
+        query.status = State.FAILED.toString();
+        query.message = e.getMessage();
+        logger.error("Error in query", e);
+        Main.queryDAO.update(query);
+      }
+    }, Boolean.TRUE);
   }
 
   public void startMove() {
@@ -412,15 +453,14 @@ public class Fetcher implements Managed {
   /**
    * Stop processing and wait for all pools to stop
    * 
+   * @param graceful
+   * 
    * @throws InterruptedException
    */
   @Override
   public void stop() throws InterruptedException {
-
-    movePool.shutdownNow();
-    queryPool.shutdownNow();
-    movePool.awaitTermination(10, TimeUnit.HOURS);
-    queryPool.awaitTermination(10, TimeUnit.HOURS);
+    queryPool.shutdown();
+    movePool.shutdown();
     movePool = null;
     queryPool = null;
   }
@@ -443,6 +483,26 @@ public class Fetcher implements Managed {
   public void throwIfStateIsNot(FetcherState expected) throws IllegalArgumentException {
     if (queryState != expected) {
       throw new IllegalArgumentException("expected state to be " + expected + " was " + queryState);
+    }
+  }
+
+  public void waitForThreads() throws InterruptedException {
+    waitForThreads(null);
+  }
+
+  public void waitForThreads(ProgressCallback callback) throws InterruptedException {
+    boolean moveRunning;
+    boolean queryRunning;
+    do {
+      Thread.sleep(100);
+      moveRunning = (moveState == FetcherState.RUNNING) && Main.queryDAO.moveCount(State.QUEUED) > 0;
+      queryRunning = (queryState == FetcherState.RUNNING) && Main.queryDAO.queryCount(State.QUEUED) > 0;
+      if (callback != null) {
+        callback.callback(moveRunning || queryRunning);
+      }
+    } while (moveRunning || queryRunning);
+    if (callback != null) {
+      callback.callback(moveRunning || queryRunning);
     }
   }
 
