@@ -24,7 +24,7 @@ project.ext {
 }
 
 group = 'org.fetcher'
-mainClassName = 'org.fetcher.Main'
+mainClassName = 'org.fetcher.MainCLI'
 version = '1.0.0-rc.1'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -43,6 +43,10 @@ dependencies {
     "com.google.guava:guava:24.0-jre",
     'org.flywaydb:flyway-core:5.0.7',
     'org.apache.derby:derby:10.14.1.0',
+    'info.picocli:picocli:3.5.1',
+    'org.xerial:sqlite-jdbc:3.23.1',
+    'me.tongfei:progressbar:0.7.1',
+    'org.apache.commons:commons-dbcp2:2.5.0'
   )
 
   def excludes = {
@@ -84,6 +88,23 @@ shadowJar {
   baseName = 'fetcher'
   classifier = null
   version = null
+}
+
+// Creates scripts for entry points
+// Subproject must apply application plugin to be able to call this method.
+project.tasks.create(name: "fetcherui", type: CreateStartScripts) {
+  outputDir       = new File(project.buildDir, 'scripts')
+  mainClassName   = 'org.fetcher.Main'
+  applicationName = "fetcherui"
+  classpath       = project.tasks[JavaPlugin.JAR_TASK_NAME].outputs.files + project.configurations.runtime
+}
+project.tasks["fetcherui"].dependsOn(project.jar)
+
+project.applicationDistribution.with {
+  into("bin") {
+    from(project.tasks["fetcherui"])
+    fileMode = 0755
+  }
 }
 
 task wrapper(type: Wrapper) {
