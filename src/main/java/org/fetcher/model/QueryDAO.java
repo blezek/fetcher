@@ -12,11 +12,11 @@ import java.util.List;
 
 public interface QueryDAO {
 
-  @SqlUpdate("insert into move (queryId, studyInstanceUID, seriesInstanceUID, patientName, patientId, accessionNumber, queryRetrieveLevel, status, message ) values ( :m.queryId, :m.studyInstanceUID, :m.seriesInstanceUID, :m.patientName, :m.patientId, :m.accessionNumber, :m.queryRetrieveLevel, :m.status, :m.message )")
+  @SqlUpdate("insert into move (queryId, studyInstanceUID, seriesInstanceUID, studyDescription, seriesDescription, patientName, patientId, accessionNumber, queryRetrieveLevel, status, message ) values ( :m.queryId, :m.studyInstanceUID, :m.seriesInstanceUID, :m.studyDescription, :m.seriesDescription, :m.patientName, :m.patientId, :m.accessionNumber, :m.queryRetrieveLevel, :m.status, :m.message )")
   @GetGeneratedKeys
   int createMove(@BindBean("m") Move m);
 
-  @SqlUpdate("insert into query ( patientName, patientId, accessionNumber, studyDate, queryRetrieveLevel, status, message ) values ( :q.patientName, :q.patientId, :q.accessionNumber, :q.studyDate, :q.queryRetrieveLevel, :q.status, :q.message )")
+  @SqlUpdate("insert into query ( patientName, patientId, accessionNumber, studyDate, queryRetrieveLevel, studyInstanceUID, status, message ) values ( :q.patientName, :q.patientId, :q.accessionNumber, :q.studyDate, :q.queryRetrieveLevel, :q.studyInstanceUID, :q.status, :q.message )")
   @GetGeneratedKeys
   int createQuery(@BindBean("q") Query q);
 
@@ -48,7 +48,11 @@ public interface QueryDAO {
   @SqlQuery("select count(*) from query where status = :status")
   int queryCount(@Bind("status") State status);
 
-  @SqlUpdate("update query set patientName = :q.patientName, patientId = :q.patientId, accessionNumber = :q.accessionNumber, studyDate = :q.studyDate, status = :q.status, message = :q.message, queryRetrieveLevel = :q.queryRetrieveLevel where queryId = :q.queryId")
+  @SqlUpdate("update query set patientName = :q.patientName, patientId = :q.patientId, accessionNumber = :q.accessionNumber, studyDate = :q.studyDate, status = :q.status, message = :q.message, queryRetrieveLevel = :q.queryRetrieveLevel, studyInstanceUID = :q.studyInstanceUID where queryId = :q.queryId")
   public void update(@BindBean("q") Query query);
+
+  @SqlQuery("select * from move")
+  @MapResultAsBean
+  List<Move> getMoves();
 
 }

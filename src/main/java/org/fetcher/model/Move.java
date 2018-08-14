@@ -10,6 +10,8 @@ public class Move {
   private Long queryId;
   private String studyInstanceUID;
   private String seriesInstanceUID;
+  private String studyDescription;
+  private String seriesDescription;
   public String patientName;
   public String patientId;
   public String accessionNumber;
@@ -108,6 +110,22 @@ public class Move {
 
   public void setStudyInstanceUID(String studyInstanceUID) {
     this.studyInstanceUID = studyInstanceUID;
+  }
+
+  public String getStudyDescription() {
+    return studyDescription;
+  }
+
+  public void setStudyDescription(String studyDescription) {
+    this.studyDescription = studyDescription;
+  }
+
+  public String getSeriesDescription() {
+    return seriesDescription;
+  }
+
+  public void setSeriesDescription(String seriesDescription) {
+    this.seriesDescription = seriesDescription;
   }
 
 }
