@@ -21,6 +21,9 @@ public class RunQuery implements Callable<Void> {
   @Option(names = { "-p", "--progress" }, description = "progress bar")
   private boolean displayProgress = false;
 
+  @Option(names = { "-q", "--queue" }, description = "queue all queries (otherwise continue)")
+  private boolean queueQueries = false;
+
   @Override
   public Void call() throws Exception {
 
@@ -30,8 +33,10 @@ public class RunQuery implements Callable<Void> {
         handle.execute("delete from move");
       });
     }
-    logger.debug("queuing all queries");
-    Main.fetcher.queueAll();
+    if (queueQueries) {
+      logger.debug("queuing all queries");
+      Main.fetcher.queueAll();
+    }
     Main.fetcher.startFind();
 
     if (displayProgress) {
