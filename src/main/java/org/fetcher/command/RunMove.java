@@ -19,10 +19,15 @@ public class RunMove implements Callable<Void> {
   @Option(names = { "-p", "--progress" }, description = "progress bar")
   private boolean displayProgress = false;
 
+  @Option(names = { "-q", "--queue" }, description = "queue all moves (otherwise continue)")
+  private boolean queueMoves = false;
+
   @Override
   public Void call() throws Exception {
     logger.debug("queuing all queries");
-    Main.fetcher.queueAllMoves();
+    if (queueMoves) {
+      Main.fetcher.queueAllMoves();
+    }
     Main.fetcher.startMove();
     if (displayProgress) {
       int count = Main.queryDAO.moveCount(State.QUEUED);

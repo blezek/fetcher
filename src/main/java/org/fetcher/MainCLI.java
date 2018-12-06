@@ -82,10 +82,19 @@ public class MainCLI implements Callable<Void> {
 
     // SQLiteDataSource ds = new SQLiteDataSource();
     BasicDataSource ds = new BasicDataSource();
-    ds.setUrl("jdbc:sqlite:" + database.getAbsolutePath());
-    // this is rather important for SQLite, it doesn't handle concurrency
-    // but write statements will queue up as necessary
-    ds.setDefaultQueryTimeout(10);
+    boolean isSqlite3 = false;
+    // Sqlite3 path
+    if (database.getName().endsWith(".db")) {
+      isSqlite3 = true;
+      ds.setUrl("jdbc:sqlite:" + database.getAbsolutePath());
+      // this is rather important for SQLite, it doesn't handle concurrency
+      // but write statements will queue up as necessary
+      ds.setDefaultQueryTimeout(1000);
+
+    } else {
+      ds.setUrl("jdbc:derby:directory:" + database.getAbsolutePath() + ";create=true");
+    }
+
     Flyway flyway = new Flyway();
     flyway.setLocations("db.sqlite.migration");
     flyway.setDataSource(ds);
@@ -93,9 +102,11 @@ public class MainCLI implements Callable<Void> {
 
     Main.jdbi = new DBI(ds);
 
-    Main.jdbi.useHandle(handle -> {
-      handle.execute("pragma busy_timeout=30000;");
-    });
+    if (isSqlite3) {
+      Main.jdbi.useHandle(handle -> {
+        handle.execute("pragma busy_timeout=3000000;");
+      });
+    }
 
     Main.queryDAO = Main.jdbi.onDemand(QueryDAO.class);
     Main.fetcher = this.fetcher;

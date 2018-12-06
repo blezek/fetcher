@@ -25,6 +25,12 @@ public class CFind {
 
   private Fetcher fetcher;
 
+  ExecutorService executorService = Executors.newSingleThreadExecutor(); // .newFixedThreadPool(10); //
+                                                                         // .newSingleThreadExecutor();
+  ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor(); // .newScheduledThreadPool(10);
+                                                                                                    // //
+                                                                                                    // .newSingleThreadScheduledExecutor();
+
   public CFind(Fetcher fetcher, Query query) {
     this.fetcher = fetcher;
     this.query = query;
@@ -110,8 +116,7 @@ public class CFind {
     FindSCU.configureOutput(main, cl);
     FindSCU.configureCancel(main, cl);
     main.setPriority(CLIUtils.priorityOf(cl));
-    ExecutorService executorService = Executors.newSingleThreadExecutor();
-    ScheduledExecutorService scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+
     main.getDevice().setExecutor(executorService);
     main.getDevice().setScheduledExecutor(scheduledExecutorService);
     try {
@@ -137,9 +142,13 @@ public class CFind {
       };
       main.query(main.getKeys(), rspHandler);
     } finally {
-      main.close();
-      executorService.shutdownNow();
-      scheduledExecutorService.shutdownNow();
+      try {
+        main.close();
+        executorService.shutdown();
+        scheduledExecutorService.shutdown();
+      } catch (Exception e) {
+        logger.error("error closing query", e);
+      }
     }
 
   }
